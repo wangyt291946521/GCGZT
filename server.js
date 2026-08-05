@@ -273,6 +273,11 @@ app.get('/api/stats', async function (req, res) {
   }
 });
 
+// ===== API 文档页 (Swagger 风格) =====
+app.get('/docs', function (req, res) {
+  res.sendFile(path.join(__dirname, 'docs.html'));
+});
+
 // ===== 静态文件（同时提供前端页面，方便 Railway 一体部署） =====
 app.use(express.static(__dirname));
 
