@@ -401,8 +401,19 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 </div>
 
 <script>
-// ===== API MODE: auto-detect when served by backend =====
-var API_BASE = (window.location.protocol==='http:'||window.location.protocol==='https:')?'/api':'';
+// ===== 部署配置（部署到 Vercel 时填写 Railway 后端地址）=====
+// 例: var GC_API_BASE = 'https://gcgzt-production-xxxx.up.railway.app';
+var GC_API_BASE = '';
+
+// ===== API MODE: auto-detect =====
+var API_BASE = (function(){
+  // 手动配置了远程 API 地址（Vercel 部署场景）
+  if(GC_API_BASE) return GC_API_BASE.replace(/\/+$/,'')+'/api';
+  // 同源部署（Railway 一体部署场景）
+  if(window.location.protocol==='http:'||window.location.protocol==='https:') return '/api';
+  // 本地文件打开 — 使用 localStorage
+  return '';
+})();
 
 // ===== STAGES =====
 var STAGES = [
@@ -449,7 +460,10 @@ var APP = {
 
   updateModeBadge:function(){
     var badge=document.getElementById('modeBadge');
-    if(API_BASE){
+    if(GC_API_BASE){
+      badge.textContent='远程API';
+      badge.style.background='#dbeafe';badge.style.color='#2563eb';
+    }else if(API_BASE){
       badge.textContent='服务器模式';
       badge.style.background='#dcfce7';badge.style.color='#059669';
     }else{
