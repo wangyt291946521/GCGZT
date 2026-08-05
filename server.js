@@ -18,18 +18,13 @@ const DATA_FILE = path.join(__dirname, 'data', 'projects.json');
 // ===== 中间件 =====
 app.use(express.json({ limit: '10mb' }));
 
-// ===== 根路径：提供主页面 =====
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '公司工作台.html'));
-});
+// 静态文件（Express 自动将 index.html 作为 / 的默认页）
+app.use(express.static(__dirname));
 
 // 健康检查端点（供 Railway / 监控使用）
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
-
-// 静态文件：直接提供同目录下的 HTML/CSS/JS
-app.use(express.static(__dirname));
 
 // ===== 数据读写 =====
 function readData() {
