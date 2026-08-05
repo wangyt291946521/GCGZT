@@ -299,6 +299,10 @@ app.use(function (err, req, res, next) {
 
 // ===== 启动 =====
 async function start() {
+  // 确保 data 目录存在
+  var dataDir = path.dirname(DATA_FILE);
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
   // 尝试连接 MongoDB
   await connectMongo();
 
