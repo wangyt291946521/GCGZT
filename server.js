@@ -17,6 +17,12 @@ const DATA_FILE = path.join(__dirname, 'data', 'projects.json');
 
 // ===== 中间件 =====
 app.use(express.json({ limit: '10mb' }));
+
+// ===== 健康检查 / 根路径 =====
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
 // 静态文件：直接提供同目录下的 HTML/CSS/JS
 app.use(express.static(__dirname));
 
@@ -132,12 +138,22 @@ app.get('/api/stats', (req, res) => {
   res.json(stats);
 });
 
+// ===== 全局错误处理 =====
+app.use((err, req, res, next) => {
+  console.error('服务器错误:', err.message);
+  res.status(500).json({ error: '服务器内部错误' });
+});
+
 // ===== 启动 =====
-app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log('═══════════════════════════════════');
   console.log('  感创 · 项目信息流转平台 后端已启动');
-  console.log(`  访问地址: http://localhost:${PORT}`);
-  console.log(`  API 地址: http://localhost:${PORT}/api/projects`);
+  console.log(`  端口: ${PORT}`);
   console.log(`  数据文件: ${DATA_FILE}`);
   console.log('═══════════════════════════════════');
+});
+
+server.on('error', (err) => {
+  console.error('启动失败:', err.message);
+  process.exit(1);
 });
