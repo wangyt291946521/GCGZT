@@ -1,0 +1,13 @@
+{
+  "name": "ganchuang-project-flow",
+  "version": "1.0.0",
+  "description": "感创 · 项目信息流转平台 — 图书馆设备跨部门协同系统",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}

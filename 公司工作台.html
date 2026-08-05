@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>感创 · 项目信息流转平台</title>
+<style>
+:root{
+  --bg:#f5f6fa; --surface:#fff; --text:#1a1a2e; --text2:#64748b; --text3:#94a3b8;
+  --border:#e2e8f0; --primary:#4f46e5; --primary-light:#eef2ff;
+  --success:#059669; --warning:#d97706; --danger:#dc2626; --info:#2563eb;
+  --radius:12px; --radius-sm:8px; --safe-bottom:env(safe-area-inset-bottom,0);
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.6;
+  -webkit-font-smoothing:antialiased;min-height:100vh;
+}
+input,textarea,select,button{font-family:inherit;font-size:16px;outline:none}
+button{cursor:pointer;border:none;background:none;color:inherit}
+
+/* === Top Bar === */
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:10px 16px;display:flex;align-items:center;gap:10px;
+  position:sticky;top:0;z-index:100;box-shadow:var(--shadow);
+}
+.topbar .logo{font-size:18px;font-weight:700;white-space:nowrap;color:var(--primary)}
+.topbar .logo span{font-weight:400;font-size:13px;color:var(--text2);margin-left:4px}
+.topbar .spacer{flex:1}
+.topbar .dept-select{
+  padding:6px 12px;border-radius:20px;font-size:14px;font-weight:600;
+  background:var(--primary-light);color:var(--primary);border:1.5px solid var(--primary);
+  min-width:80px;text-align:center;appearance:none;-webkit-appearance:none;
+}
+.topbar .stat-badge{
+  display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--text2);
+  background:var(--bg);padding:4px 10px;border-radius:20px;white-space:nowrap;
+}
+.topbar .stat-badge b{color:var(--text)}
+.topbar .btn-icon{
+  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;transition:background .2s;
+}
+.topbar .btn-icon:hover{background:var(--bg)}
+
+/* === Search === */
+.search-bar{
+  margin:12px 16px 0;position:relative;
+}
+.search-bar input{
+  width:100%;padding:10px 14px 10px 38px;border:1.5px solid var(--border);
+  border-radius:24px;font-size:15px;background:var(--surface);
+  transition:border .2s;
+}
+.search-bar input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light)}
+.search-bar svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text3)}
+.search-bar .clear-search{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  width:24px;height:24px;border-radius:50%;background:var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+  color:var(--text2);display:none;
+}
+
+/* === Pipeline Bar === */
+.pipeline-bar{
+  display:flex;gap:0;padding:14px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.pipeline-bar::-webkit-scrollbar{display:none}
+.pipeline-step{
+  flex:1 0 80px;min-width:80px;text-align:center;padding:10px 4px;
+  border-radius:var(--radius-sm);background:var(--surface);transition:all .2s;
+  border:1.5px solid var(--border);position:relative;cursor:pointer;
+}
+.pipeline-step.active{border-color:var(--primary);background:var(--primary-light)}
+.pipeline-step:hover{border-color:var(--primary)}
+.pipeline-step .step-num{
+  width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;
+  justify-content:center;font-size:11px;font-weight:700;margin-bottom:3px;
+  background:var(--bg);color:var(--text3);
+}
+.pipeline-step.active .step-num{background:var(--primary);color:#fff}
+.pipeline-step .step-name{font-size:11px;font-weight:600;color:var(--text2);line-height:1.3}
+.pipeline-step.active .step-name{color:var(--primary)}
+.pipeline-step .step-count{font-size:18px;font-weight:700;margin-top:1px}
+.pipeline-step.active .step-count{color:var(--primary)}
+.pipeline-step .step-sub{font-size:10px;color:var(--text3)}
+.pipeline-step::after{
+  content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);
+  width:7px;height:7px;border-top:1.5px solid var(--border);
+  border-right:1.5px solid var(--border);transform:translateY(-50%) rotate(45deg);
+}
+.pipeline-step:last-child::after{display:none}
+
+/* === Section === */
+.section{margin:0 16px 16px}
+.section-title{
+  font-size:15px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px;
+}
+.section-title .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.section-title .count{font-size:12px;color:var(--text3);font-weight:400}
+
+/* === My Tasks === */
+.my-task-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:6px;
+  border:1px solid transparent;gap:8px;
+}
+.my-task-item .task-tag{
+  font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0;
+}
+.my-task-item .task-name{flex:1;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* === Filter Tabs === */
+.filter-tabs{
+  display:flex;gap:4px;overflow-x:auto;padding:8px 16px;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.filter-tabs::-webkit-scrollbar{display:none}
+.filter-tab{
+  padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;
+  white-space:nowrap;background:var(--surface);border:1.5px solid var(--border);
+  color:var(--text2);transition:all .2s;
+}
+.filter-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* === Project Cards === */
+.project-list{display:flex;flex-direction:column;gap:12px}
+.project-card{
+  background:var(--surface);border-radius:var(--radius);padding:14px;
+  box-shadow:var(--shadow);border:1.5px solid var(--border);transition:all .2s;cursor:pointer;
+}
+.project-card:hover{box-shadow:var(--shadow-md)}
+.project-card:active{transform:scale(.99)}
+.project-card.needs-me{border-color:var(--warning);box-shadow:0 0 0 2px rgba(217,119,6,.15)}
+.project-header{
+  display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:8px;
+}
+.project-title{font-size:15px;font-weight:700;line-height:1.3}
+.project-meta{font-size:12px;color:var(--text3);margin-top:2px}
+
+/* Stage badge */
+.stage-badge{
+  font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;
+}
+.sb-pending{background:#f1f5f9;color:#64748b}
+.sb-progress{background:#dbeafe;color:#2563eb}
+.sb-done{background:#dcfce7;color:#059669}
+.sb-delayed{background:#fef2f2;color:#dc2626}
+
+/* Stage pipeline */
+.stage-pipeline{
+  display:flex;gap:3px;align-items:center;margin:8px 0;
+}
+.stage-pipeline .sp-dot{flex:1;height:6px;border-radius:3px;background:var(--border)}
+.sp-dot.done{background:var(--success)}
+.sp-dot.in-progress{background:var(--primary);height:8px;border-radius:4px}
+.sp-dot.delayed{background:var(--danger)}
+.sp-dot.my-dept{background:var(--warning);animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Stage labels row */
+.stage-labels{
+  display:flex;justify-content:space-between;margin:4px 0 8px;
+}
+.stage-labels span{font-size:10px;color:var(--text3)}
+.stage-labels span.active{color:var(--primary);font-weight:700}
+.stage-labels span.done{color:var(--success)}
+
+/* Card footer */
+.project-footer{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;
+  font-size:12px;color:var(--text2);padding-top:10px;border-top:1px solid var(--border);
+}
+.project-footer .pf-info{display:flex;align-items:center;gap:4px}
+
+/* === Buttons === */
+.btn-sm{
+  padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;
+  transition:all .2s;display:inline-flex;align-items:center;gap:4px;
+}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{opacity:.9}
+.btn-outline{background:var(--surface);color:var(--primary);border:1.5px solid var(--primary)}
+.btn-outline:hover{background:var(--primary-light)}
+.btn-success{background:var(--success);color:#fff}
+.btn-warning{background:var(--warning);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-gray{background:var(--bg);color:var(--text);border:1.5px solid var(--border)}
+
+/* === Action Bar === */
+.action-bar{
+  display:flex;gap:8px;padding:12px 16px;flex-wrap:wrap;
+  position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);
+  padding-bottom:calc(12px + var(--safe-bottom));z-index:50;
+}
+.action-bar button{
+  flex:1;min-width:80px;padding:10px;border-radius:22px;
+  font-size:14px;font-weight:600;text-align:center;transition:all .2s;
+}
+
+/* === Modals === */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;
+  display:flex;align-items:flex-end;justify-content:center;
+}
+@media(min-width:768px){.modal-overlay{align-items:center}}
+.modal{
+  background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:680px;
+  max-height:90vh;overflow-y:auto;padding:24px 20px;
+  box-shadow:0 -4px 24px rgba(0,0,0,.12);
+}
+@media(min-width:768px){.modal{border-radius:16px;margin:20px}}
+.modal h2{font-size:20px;margin-bottom:14px;padding-right:28px}
+.modal h3{font-size:15px;margin-bottom:10px}
+
+/* Stage detail */
+.stage-detail{
+  padding:12px 14px;border-radius:var(--radius-sm);margin-bottom:8px;
+  border:1.5px solid var(--border);
+}
+.stage-detail.current{background:var(--primary-light);border-color:var(--primary)}
+.stage-detail.completed{background:#f0fdf4;border-color:#86efac}
+.stage-detail .sd-header{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;
+}
+.stage-detail .sd-label{font-weight:700;font-size:14px}
+.stage-detail .sd-status{
+  font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap;
+}
+.stage-detail .sd-info{font-size:13px;color:var(--text2);line-height:1.6}
+.stage-detail .sd-edit{margin-top:6px}
+.stage-detail .sd-edit input,.stage-detail .sd-edit textarea{
+  width:100%;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;
+  font-size:14px;margin-top:4px;
+}
+.stage-detail .sd-edit textarea{min-height:40px;resize:vertical}
+.stage-detail .sd-actions{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+
+/* Form */
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:4px}
+.form-group input,.form-group textarea,.form-group select{
+  width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+  font-size:15px;transition:border .2s;
+}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{
+  border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light);
+}
+.form-group textarea{min-height:56px;resize:vertical}
+
+/* Empty */
+.empty-state{
+  text-align:center;padding:40px 20px;color:var(--text3);
+}
+.empty-state svg{margin-bottom:10px;opacity:.4}
+
+/* Toast */
+.toast{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999;
+  padding:10px 22px;border-radius:20px;font-size:14px;font-weight:600;
+  color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.15);animation:slideIn .3s ease;
+}
+@keyframes slideIn{from{opacity:0;transform:translateX(-50%) translateY(-12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--danger)}
+.toast.info{background:var(--info)}
+
+/* Confirm */
+.confirm-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.confirm-box{
+  background:var(--surface);border-radius:var(--radius);padding:24px;
+  max-width:360px;width:100%;text-align:center;
+}
+.confirm-box h3{margin-bottom:8px}
+.confirm-box p{color:var(--text2);font-size:14px;margin-bottom:18px}
+.confirm-box .btn-row{display:flex;gap:8px}
+.confirm-box .btn-row button{flex:1;padding:10px;border-radius:20px;font-weight:600;font-size:14px}
+
+/* === Desktop === */
+@media(min-width:768px){
+  .topbar{padding:10px 24px}
+  .search-bar{margin:12px 24px 0}
+  .pipeline-bar{padding:14px 24px}
+  .pipeline-step{min-width:auto;flex:1}
+  .section{margin:0 24px 20px}
+  .filter-tabs{padding:8px 24px}
+  .action-bar{padding:12px 24px;padding-bottom:12px}
+  .project-list{display:grid;grid-template-columns:repeat(2,1fr)}
+}
+@media(min-width:1024px){
+  .project-list{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Top Bar ===== -->
+<div class="topbar">
+  <div class="logo">感创<span>| 项目流转</span></div>
+  <div class="spacer"></div>
+  <span class="stat-badge">共 <b id="totalProjects">0</b> 个项目</span>
+  <select class="dept-select" id="deptSelect" onchange="APP.switchDept(this.value)">
+    <option value="all">全部视角</option>
+    <option value="项目部">项目部</option>
+    <option value="采购部">采购部</option>
+    <option value="研发部">研发部</option>
+    <option value="生产部">生产部</option>
+    <option value="发货">发货</option>
+    <option value="维护部">维护部</option>
+    <option value="财务部">财务部</option>
+  </select>
+  <span id="modeBadge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap"></span>
+  <button class="btn-icon" onclick="APP.openBackup()" title="数据管理">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+  </button>
+</div>
+
+<!-- ===== Search ===== -->
+<div class="search-bar">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  <input type="text" id="searchInput" placeholder="搜索项目名称、合同号、代理商…" oninput="APP.doSearch()">
+  <button class="clear-search" id="clearSearch" onclick="APP.clearSearch()">×</button>
+</div>
+
+<!-- ===== Pipeline Overview ===== -->
+<div class="pipeline-bar" id="pipelineBar"></div>
+
+<!-- ===== My Tasks ===== -->
+<div class="section" id="myTasksSection"></div>
+
+<!-- ===== Filter Tabs ===== -->
+<div class="filter-tabs" id="filterTabs">
+  <button class="filter-tab active" onclick="APP.setFilter('all')">全部项目</button>
+  <button class="filter-tab" onclick="APP.setFilter('my')">需要我处理</button>
+  <button class="filter-tab" onclick="APP.setFilter('active')">进行中</button>
+  <button class="filter-tab" onclick="APP.setFilter('delayed')">已超期</button>
+  <button class="filter-tab" onclick="APP.setFilter('done')">已完成</button>
+</div>
+
+<!-- ===== Project List ===== -->
+<div class="section">
+  <div class="section-title">
+    <span class="dot" style="background:var(--primary)"></span>
+    <span id="listTitle">全部项目</span>
+    <span class="count" id="listCount"></span>
+  </div>
+  <div class="project-list" id="projectList"></div>
+  <div class="empty-state" id="emptyState" style="display:none">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
+    <p id="emptyMsg">暂无项目数据</p>
+    <button class="btn-sm btn-primary" style="margin-top:12px" onclick="APP.openAddModal()">+ 创建第一个项目</button>
+  </div>
+</div>
+
+<!-- ===== Bottom Bar ===== -->
+<div class="action-bar">
+  <button class="btn-primary" onclick="APP.openAddModal()">+ 新建项目</button>
+  <button class="btn-outline" onclick="APP.exportData()">导出备份</button>
+  <button class="btn-outline" onclick="APP.openImport()">导入恢复</button>
+  <button class="btn-gray" onclick="APP.confirmClear()" style="color:var(--danger)">清空数据</button>
+</div>
+
+<!-- ===== Detail Modal ===== -->
+<div class="modal-overlay" id="detailModal" style="display:none" onclick="if(event.target===this)APP.closeDetailModal()">
+  <div class="modal" id="detailContent"></div>
+</div>
+
+<!-- ===== Add/Edit Modal ===== -->
+<div class="modal-overlay" id="formModal" style="display:none" onclick="if(event.target===this)APP.closeFormModal()">
+  <div class="modal" id="formContent"></div>
+</div>
+
+<!-- ===== Import Modal ===== -->
+<div class="modal-overlay" id="importModal" style="display:none" onclick="if(event.target===this)APP.closeImportModal()">
+  <div class="modal" id="importContent"></div>
+</div>
+
+<!-- ===== Backup Modal ===== -->
+<div class="modal-overlay" id="backupModal" style="display:none" onclick="if(event.target===this)APP.closeBackup()">
+  <div class="modal" id="backupContent"></div>
+</div>
+
+<!-- ===== Confirm Dialog ===== -->
+<div class="confirm-overlay" id="confirmDialog" style="display:none">
+  <div class="confirm-box">
+    <h3 id="confirmTitle">确认操作</h3>
+    <p id="confirmMsg"></p>
+    <div class="btn-row">
+      <button class="btn-gray" onclick="APP.cancelConfirm()">取消</button>
+      <button id="confirmBtn" class="btn-danger" onclick="APP.runConfirm()">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== API MODE: auto-detect when served by backend =====
+var API_BASE = (window.location.protocol==='http:'||window.location.protocol==='https:')?'/api':'';
+
+// ===== STAGES =====
+var STAGES = [
+  {key:'order',    name:'执行单',   dept:'项目部', desc:'合同号、项目名称、代理商、项目清单'},
+  {key:'purchase', name:'采购',     dept:'采购部', desc:'采购时间、到货情况'},
+  {key:'dev',      name:'研发',     dept:'研发部', desc:'定制开发内容与进度'},
+  {key:'production',name:'生产',    dept:'生产部', desc:'设备生产与安装情况'},
+  {key:'shipping', name:'发货',     dept:'发货',   desc:'发货日期与物流信息'},
+  {key:'maintenance',name:'维护开通',dept:'维护部', desc:'开通日期与备注'},
+  {key:'payment',  name:'回款',     dept:'财务部', desc:'回款日期、金额、状态'}
+];
+
+// ===== HELPERS =====
+function today(){return new Date().toISOString().split('T')[0]}
+function daysAgo(d){if(!d)return 0;return Math.floor((new Date()-new Date(d+'T00:00:00'))/86400000)}
+function isOverdue(st){return st&&st.s==='in-progress'&&st.de&&st.de<today()}
+
+// ===== DEMO DATA =====
+// stage model: {s:'pending'|'in-progress'|'done', ds:开始日期, de:截止/完成日期, h:处理人, n:备注}
+var DEMO = [
+  {id:'P2026-001',contractNo:'20260308001',name:'深圳南山图书馆智能借还系统',agent:'深圳智慧科技',items:'借还书机×8, RFID安全门×4',
+    stages:{order:{s:'done',ds:'2026-03-01',de:'2026-03-10',h:'张经理',n:''},purchase:{s:'done',ds:'2026-03-15',de:'2026-03-25',h:'李采购',n:'全部到货'},dev:{s:'done',ds:'2026-03-26',de:'2026-04-15',h:'王工',n:'定制借还流程适配完成'},production:{s:'in-progress',ds:'2026-04-16',de:'2026-08-12',h:'赵生产',n:'设备组装中'},shipping:{s:'pending',ds:'',de:'',h:'',n:''},maintenance:{s:'pending',ds:'',de:'',h:'',n:''},payment:{s:'pending',ds:'',de:'',h:'',n:''}}},
+  {id:'P2026-002',contractNo:'20260415002',name:'广州天河区图书馆门禁系统',agent:'广州博学科技',items:'RFID通道门×6, 检测仪×2',
+    stages:{order:{s:'done',ds:'2026-04-10',de:'2026-04-16',h:'刘经理',n:''},purchase:{s:'in-progress',ds:'2026-04-17',de:'2026-08-20',h:'李采购',n:'下单完成,等待到货'},dev:{s:'pending',ds:'',de:'',h:'',n:''},production:{s:'pending',ds:'',de:'',h:'',n:''},shipping:{s:'pending',ds:'',de:'',h:'',n:''},maintenance:{s:'pending',ds:'',de:'',h:'',n:''},payment:{s:'pending',ds:'',de:'',h:'',n:''}}},
+  {id:'P2026-003',contractNo:'20260108003',name:'北京海淀区智慧图书馆整体方案',agent:'北京文轩信息',items:'借还机×12,盘点车×3,工作站×5,标签×5万',
+    stages:{order:{s:'done',ds:'2026-01-10',de:'2026-01-25',h:'陈总监',n:'合同金额¥280万'},purchase:{s:'done',ds:'2026-01-26',de:'2026-02-15',h:'李采购',n:'分批到货'},dev:{s:'done',ds:'2026-02-16',de:'2026-03-20',h:'王工',n:'接口开发完成'},production:{s:'done',ds:'2026-03-21',de:'2026-04-30',h:'赵生产',n:'安装调试完成'},shipping:{s:'done',ds:'2026-05-01',de:'2026-05-10',h:'孙物流',n:'已发货'},maintenance:{s:'in-progress',ds:'2026-05-11',de:'2026-07-28',h:'周维护',n:'等待客户确认中'},payment:{s:'pending',ds:'',de:'',h:'',n:''}}},
+  {id:'P2026-004',contractNo:'20260501004',name:'成都锦江区24小时自助图书馆',agent:'成都数图科技',items:'自助借还柜×2,门禁×1',
+    stages:{order:{s:'done',ds:'2026-05-05',de:'2026-05-10',h:'张经理',n:''},purchase:{s:'pending',ds:'',de:'',h:'',n:''},dev:{s:'pending',ds:'',de:'',h:'',n:''},production:{s:'pending',ds:'',de:'',h:'',n:''},shipping:{s:'pending',ds:'',de:'',h:'',n:''},maintenance:{s:'pending',ds:'',de:'',h:'',n:''},payment:{s:'pending',ds:'',de:'',h:'',n:''}}}
+];
+
+// ===== APP =====
+var APP = {
+  dept:'all',
+  filter:'all',
+  projects:[],
+  confirmCb:null,
+  searchText:'',
+
+  init:function(){
+    this.updateModeBadge();
+    this.loadData();
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'){APP.closeDetailModal();APP.closeFormModal();}});
+  },
+
+  updateModeBadge:function(){
+    var badge=document.getElementById('modeBadge');
+    if(API_BASE){
+      badge.textContent='服务器模式';
+      badge.style.background='#dcfce7';badge.style.color='#059669';
+    }else{
+      badge.textContent='本地模式';
+      badge.style.background='#fef3c7';badge.style.color='#d97706';
+    }
+  },
+
+  // ==== DATA ====
+  loadData:function(){
+    var self=this;
+    // ---- API mode ----
+    if(API_BASE){
+      fetch(API_BASE+'/projects')
+        .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+        .then(function(data){
+          self.projects=data;
+          self._migrateStages();
+          if(!self.projects.length){self.projects=JSON.parse(JSON.stringify(DEMO));self.saveData()}
+          self.renderAll();
+        })
+        .catch(function(e){
+          console.error('服务器连接失败:',e);
+          self.projects=JSON.parse(JSON.stringify(DEMO));
+          self.renderAll();
+          self.toast('服务器未连接，已加载示例数据','error');
+        });
+      return;
+    }
+    // ---- localStorage mode ----
+    var raw=localStorage.getItem('wb_gc_projects_v2');
+    if(raw){try{this.projects=JSON.parse(raw)}catch(e){this.projects=[]}}
+    this._migrateStages();
+    if(!this.projects.length){this.projects=JSON.parse(JSON.stringify(DEMO));this.saveData()}
+    this.renderAll();
+  },
+
+  _migrateStages:function(){
+    var migrated=false;
+    for(var i=0;i<this.projects.length;i++){
+      var p=this.projects[i];
+      for(var j=0;j<STAGES.length;j++){
+        var st=p.stages[STAGES[j].key];
+        if(st&&st.hasOwnProperty('d')&&!st.hasOwnProperty('ds')){
+          st.ds=st.s==='done'||st.s==='in-progress'||st.s==='delayed'?st.d:'';
+          st.de=st.d||'';
+          delete st.d;
+          if(st.s==='delayed')st.s='in-progress';
+          migrated=true;
+        }
+      }
+    }
+    if(migrated)this.saveData();
+  },
+
+  saveData:function(){
+    // ---- API mode ----
+    if(API_BASE){
+      fetch(API_BASE+'/projects',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.projects)})
+        .catch(function(){APP.toast('保存失败，请检查服务器','error')});
+      return;
+    }
+    // ---- localStorage mode ----
+    localStorage.setItem('wb_gc_projects_v2',JSON.stringify(this.projects));
+    if(this.projects.length>=10&&!localStorage.getItem('wb_gc_backup_hint2')){
+      localStorage.setItem('wb_gc_backup_hint2','1');
+      this.toast('数据已积累'+this.projects.length+'条,建议导出备份','info');
+    }
+  },
+
+  // ==== SEARCH ====
+  doSearch:function(){
+    this.searchText=document.getElementById('searchInput').value.trim().toLowerCase();
+    var btn=document.getElementById('clearSearch');
+    btn.style.display=this.searchText?'flex':'none';
+    this.renderProjectList();
+  },
+  clearSearch:function(){
+    document.getElementById('searchInput').value='';
+    this.searchText='';
+    document.getElementById('clearSearch').style.display='none';
+    this.renderProjectList();
+  },
+
+  // ==== DEPT ====
+  switchDept:function(d){
+    this.dept=d;
+    if(d==='all'&&this.filter==='my')this.filter='all';
+    this.renderAll();
+  },
+  setFilter:function(f){
+    this.filter=f;
+    var tabs=document.querySelectorAll('.filter-tab');
+    for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');
+    document.querySelectorAll('.filter-tab').forEach(function(t){
+      if(t.textContent.trim()===APP.filterLabel(f))t.classList.add('active');
+    });
+    this.renderProjectList();
+  },
+  filterLabel:function(f){
+    var m={all:'全部项目',my:'需要我处理',active:'进行中',delayed:'已超期',done:'已完成'};
+    return m[f]||f;
+  },
+
+  // ==== GET STAGE FOR DEPT ====
+  stageKeyFor:function(dept){
+    for(var i=0;i<STAGES.length;i++){if(STAGES[i].dept===dept)return STAGES[i].key}
+    return 'order';
+  },
+
+  // ==== RENDER ALL ====
+  renderAll:function(){
+    this.renderPipeline();
+    this.renderMyTasks();
+    this.renderProjectList();
+    document.getElementById('totalProjects').textContent=this.projects.length;
+  },
+
+  // ---- Pipeline Bar ----
+  renderPipeline:function(){
+    var self=this,html='';
+    for(var i=0;i<STAGES.length;i++){
+      var s=STAGES[i];
+      var inProg=0,overdue=0,pending=0;
+      this.projects.forEach(function(p){
+        var st=p.stages[s.key];
+        if(st&&isOverdue(st))overdue++;
+        else if(st&&st.s==='in-progress')inProg++;
+        if(!st||st.s==='pending')pending++;
+      });
+      var isActive=(self.dept==='all'||self.dept===s.dept);
+      var ovTxt=overdue?' <span style="color:var(--danger);font-size:10px">('+overdue+'超期)</span>':'';
+      html+='<div class="pipeline-step'+(isActive?' active':'')+'" onclick="APP.switchDept(\''+s.dept+'\')">'+
+        '<div class="step-num">'+(i+1)+'</div>'+
+        '<div class="step-name">'+s.name+'</div>'+
+        '<div class="step-count">'+(inProg+overdue)+'</div>'+
+        '<div class="step-sub">进行中'+ovTxt+' | '+pending+'待处理</div>'+
+      '</div>';
+    }
+    document.getElementById('pipelineBar').innerHTML=html;
+  },
+
+  // ---- My Tasks ----
+  renderMyTasks:function(){
+    var sec=document.getElementById('myTasksSection');
+    if(this.dept==='all'){
+      var inP=0,delayed=0,pending=0;
+      this.projects.forEach(function(p){
+        var hasInProg=false,hasDelayed=false;
+        STAGES.forEach(function(s){
+          var st=p.stages[s.key];
+          if(st&&st.s==='in-progress')hasInProg=true;
+          if(isOverdue(st))hasDelayed=true;
+        });
+        if(hasDelayed)delayed++;
+        else if(hasInProg)inP++;
+        else{
+          var anyDone=false;
+          for(var i=0;i<STAGES.length;i++){
+            var st=p.stages[STAGES[i].key];
+            if(st&&st.s==='done')anyDone=true;
+            else if(anyDone||(st&&st.s==='pending')){pending++;break}
+          }
+          if(!anyDone)pending++;
+        }
+      });
+      var done=this.projects.filter(function(p){
+        return STAGES.every(function(s){var st=p.stages[s.key];return st&&st.s==='done'});
+      }).length;
+      sec.innerHTML='<div class="section-title"><span class="dot" style="background:var(--info)"></span>全局概览</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+        '<div style="flex:1;min-width:70px;background:var(--surface);border-radius:8px;padding:10px 8px;text-align:center;border:1px solid var(--border)"><div style="font-size:22px;font-weight:700;color:var(--primary)">'+inP+'</div><div style="font-size:11px;color:var(--text2)">进行中</div></div>'+
+        '<div style="flex:1;min-width:70px;background:var(--surface);border-radius:8px;padding:10px 8px;text-align:center;border:1px solid var(--border)"><div style="font-size:22px;font-weight:700;color:var(--danger)">'+delayed+'</div><div style="font-size:11px;color:var(--text2)">已延期</div></div>'+
+        '<div style="flex:1;min-width:70px;background:var(--surface);border-radius:8px;padding:10px 8px;text-align:center;border:1px solid var(--border)"><div style="font-size:22px;font-weight:700;color:var(--warning)">'+pending+'</div><div style="font-size:11px;color:var(--text2)">待启动</div></div>'+
+        '<div style="flex:1;min-width:70px;background:var(--surface);border-radius:8px;padding:10px 8px;text-align:center;border:1px solid var(--border)"><div style="font-size:22px;font-weight:700;color:var(--success)">'+done+'</div><div style="font-size:11px;color:var(--text2)">已完成</div></div>'+
+        '</div>';
+      return;
+    }
+
+    var sk=this.stageKeyFor(this.dept);
+    var stageName='';for(var i=0;i<STAGES.length;i++){if(STAGES[i].key===sk){stageName=STAGES[i].name;break}}
+    var overdue=[],inProg=[],waiting=[];
+    var self=this;
+    this.projects.forEach(function(p){
+      var st=p.stages[sk];if(!st)return;
+      if(isOverdue(st))overdue.push(p);
+      else if(st.s==='in-progress')inProg.push(p);
+      else if(st.s==='pending')waiting.push(p);
+    });
+
+    var html='';
+    if(overdue.length){
+      for(var i=0;i<overdue.length;i++){
+        var p=overdue[i];
+        html+='<div class="my-task-item" style="background:#fef2f2;border-color:#fecaca">'+
+          '<span class="task-tag" style="background:#dc2626;color:#fff">逾期</span>'+
+          '<span class="task-name">'+p.name+'</span>'+
+          '<button class="btn-sm btn-danger" onclick="event.stopPropagation();APP.openDetail(\''+p.id+'\')">处理</button></div>';
+      }
+    }
+    if(inProg.length){
+      for(var i=0;i<inProg.length;i++){
+        var p=inProg[i];
+        html+='<div class="my-task-item" style="background:#dbeafe;border-color:#bfdbfe">'+
+          '<span class="task-tag" style="background:#2563eb;color:#fff">进行中</span>'+
+          '<span class="task-name">'+p.name+'</span>'+
+          '<button class="btn-sm btn-primary" onclick="event.stopPropagation();APP.openDetail(\''+p.id+'\')">处理</button></div>';
+      }
+    }
+    if(waiting.length&&waiting.length<=6){
+      for(var i=0;i<Math.min(waiting.length,6);i++){
+        var p=waiting[i];
+        html+='<div class="my-task-item" style="background:var(--bg);border-color:var(--border)">'+
+          '<span class="task-tag" style="background:#e2e8f0;color:#64748b">待启动</span>'+
+          '<span class="task-name">'+p.name+'</span>'+
+          '<button class="btn-sm btn-outline" onclick="event.stopPropagation();APP.openDetail(\''+p.id+'\')">处理</button></div>';
+      }
+    }
+    if(!html)html='<div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;background:var(--surface);border-radius:8px;border:1px solid var(--border)">当前没有待处理的任务</div>';
+
+    sec.innerHTML='<div class="section-title"><span class="dot" style="background:var(--warning)"></span>'+this.dept+' · '+stageName+'任务 ('+(overdue.length+inProg.length+waiting.length)+'项)</div>'+html;
+  },
+
+  // ---- Project List ----
+  renderProjectList:function(){
+    var list=this.projects.slice();
+    var titleEl=document.getElementById('listTitle');
+    var countEl=document.getElementById('listCount');
+
+    // Search filter
+    if(this.searchText){
+      list=list.filter(function(p){
+        var txt=(p.name+' '+p.contractNo+' '+p.agent+' '+p.items).toLowerCase();
+        return txt.indexOf(APP.searchText)>=0;
+      });
+      titleEl.textContent='搜索结果';
+    }
+    // Dept filter
+    else if(this.filter==='my'&&this.dept!=='all'){
+      var sk=this.stageKeyFor(this.dept);
+      list=list.filter(function(p){var st=p.stages[sk];return st&&(st.s==='in-progress'||st.s==='pending'||isOverdue(st))});
+      titleEl.textContent='需要我处理';
+    }else if(this.filter==='active'){
+      list=list.filter(function(p){return STAGES.some(function(s){var st=p.stages[s.key];return st&&st.s==='in-progress'})});
+      titleEl.textContent='进行中的项目';
+    }else if(this.filter==='delayed'){
+      list=list.filter(function(p){return STAGES.some(function(s){return isOverdue(p.stages[s.key])})});
+      titleEl.textContent='已超期的项目';
+    }else if(this.filter==='done'){
+      list=list.filter(function(p){return STAGES.every(function(s){var st=p.stages[s.key];return st&&st.s==='done'})});
+      titleEl.textContent='已完成的项目';
+    }else{
+      titleEl.textContent='全部项目';
+    }
+    countEl.textContent='('+list.length+')';
+
+    var container=document.getElementById('projectList');
+    var empty=document.getElementById('emptyState');
+
+    if(!list.length){
+      container.innerHTML='';
+      empty.style.display='block';
+      document.getElementById('emptyMsg').textContent=this.searchText?'没有找到匹配的项目':'暂无项目数据';
+      return;
+    }
+    empty.style.display='none';
+
+    var self=this;
+    container.innerHTML=list.map(function(p){return self.cardHTML(p)}).join('');
+
+    // Update filter tab
+    var tabs=document.querySelectorAll('.filter-tab');
+    for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');
+    tabs.forEach(function(t){if(t.textContent.trim()===self.filterLabel(self.filter))t.classList.add('active')});
+  },
+
+  // ---- Card ----
+  cardHTML:function(p){
+    // Find current stage — overdue is computed, not stored
+    var curIdx=0,curStatus='pending';
+    for(var i=0;i<STAGES.length;i++){
+      var st=p.stages[STAGES[i].key];
+      if(st&&st.s==='in-progress'){curIdx=i;curStatus='in-progress';break}
+      if(st&&st.s==='done'){curIdx=i;curStatus='done'}
+      else if(curStatus==='done'){curIdx=i;curStatus='pending'}
+    }
+    // After loop, check if current stage is overdue
+    var curSt=p.stages[STAGES[curIdx].key];
+    var stageOverdue=isOverdue(curSt);
+
+    // Badge
+    var badgeCls='sb-pending',badgeText='待启动';
+    if(stageOverdue){badgeCls='sb-delayed';badgeText='第'+(curIdx+1)+'步 · 已超期'+daysAgo(curSt.de)+'天'}
+    else if(curStatus==='in-progress'){badgeCls='sb-progress';badgeText='第'+(curIdx+1)+'步 · '+STAGES[curIdx].name+'中'}
+    else if(curStatus==='done'){badgeCls='sb-done';badgeText='已完成'}
+    else if(curIdx>0){badgeText='待'+STAGES[curIdx].dept+'处理'}
+
+    // Stage dots
+    var myKey=this.dept!=='all'?this.stageKeyFor(this.dept):'';
+    var myIdx=-1;for(var i=0;i<STAGES.length;i++){if(STAGES[i].key===myKey){myIdx=i;break}}
+
+    var dots='';
+    for(var i=0;i<STAGES.length;i++){
+      var st=p.stages[STAGES[i].key];
+      var cls='sp-dot';
+      if(st&&st.s==='done')cls+=' done';
+      else if(isOverdue(st))cls+=' delayed';
+      else if(i===curIdx&&curStatus==='in-progress'&&!stageOverdue)cls+=' in-progress';
+      if(i===myIdx&&st&&st.s!=='done'&&st.s!=='in-progress')cls+=' my-dept';
+      dots+='<div class="'+cls+'" title="'+STAGES[i].name+'"></div>';
+    }
+
+    // Stage labels
+    var labels='';
+    for(var i=0;i<STAGES.length;i++){
+      var st=p.stages[STAGES[i].key];
+      var done=st&&st.s==='done';
+      var over=isOverdue(st);
+      var cls=done?'done':(over?'active':'');
+      var labelText=done?'✓ '+STAGES[i].name:(over?'⚠ '+STAGES[i].name:STAGES[i].name);
+      labels+='<span class="'+cls+'"'+(over?' style="color:var(--danger);font-weight:700"':'')+'>'+labelText+'</span>';
+    }
+
+    // Action button
+    var actionBtn='';
+    if(this.dept!=='all'&&myIdx>=0&&curIdx===myIdx){
+      if(stageOverdue){
+        actionBtn='<button class="btn-sm btn-warning" onclick="event.stopPropagation();APP.completeMyStage(\''+p.id+'\')">标记完成</button>';
+      }else if(curStatus==='in-progress'){
+        actionBtn='<button class="btn-sm btn-success" onclick="event.stopPropagation();APP.completeMyStage(\''+p.id+'\')">标记完成</button>';
+      }else if(curStatus==='pending'){
+        actionBtn='<button class="btn-sm btn-primary" onclick="event.stopPropagation();APP.startMyStage(\''+p.id+'\')">开始处理</button>';
+      }
+    }else if(this.dept==='all'){
+      actionBtn='<button class="btn-sm btn-outline" onclick="event.stopPropagation();APP.openDetail(\''+p.id+'\')">查看</button>';
+    }
+
+    // Need-me highlight
+    var needsMe=(this.dept!=='all'&&myIdx>=0&&curIdx===myIdx)?' needs-me':'';
+
+    return '<div class="project-card'+needsMe+'" onclick="APP.openDetail(\''+p.id+'\')">'+
+      '<div class="project-header">'+
+        '<div><div class="project-title">'+p.name+'</div><div class="project-meta">合同号：'+p.contractNo+' · '+p.agent+'</div></div>'+
+        '<span class="stage-badge '+badgeCls+'">'+badgeText+'</span>'+
+      '</div>'+
+      '<div class="stage-pipeline">'+dots+'</div>'+
+      '<div class="stage-labels">'+labels+'</div>'+
+      '<div class="project-footer">'+
+        (curStatus==='done'?'<span style="color:var(--success);font-weight:600">全部完成</span>':
+         stageOverdue?'<span style="color:var(--danger)">'+STAGES[curIdx].dept+'已超期'+daysAgo(curSt.de)+'天</span>':
+         curStatus==='in-progress'?'<span>'+STAGES[curIdx].dept+'处理中 · 截止'+curSt.de+'</span>':
+         '<span>等待'+STAGES[curIdx].dept+'处理</span>')+
+        actionBtn+
+      '</div>'+
+    '</div>';
+  },
+
+  // ==== DETAIL MODAL ====
+  openDetail:function(pid){
+    var p=this.findProject(pid);if(!p)return;
+
+    var self=this;
+    var html='<h2>'+p.name+'</h2>'+
+      '<div style="color:var(--text2);font-size:13px;margin-bottom:16px;line-height:1.8">'+
+        '<div>合同号：'+(p.contractNo||'未填')+'</div>'+
+        '<div>代理商：'+(p.agent||'未填')+'</div>'+
+        '<div>项目清单：'+(p.items||'未填')+'</div>'+
+      '</div>';
+
+    for(var i=0;i<STAGES.length;i++){
+      var s=STAGES[i];
+      var st=p.stages[s.key];
+      var status=(st&&st.s)?st.s:'pending';
+
+      var over=isOverdue(st);
+      var label='待启动',color='#94a3b8',bg='#f1f5f9';
+      if(status==='done'){label='已完成';color='#059669';bg='#dcfce7'}
+      else if(over){label='已超期'+daysAgo(st.de)+'天';color='#dc2626';bg='#fecaca'}
+      else if(status==='in-progress'){label='进行中';color='#4f46e5';bg='#dbeafe'}
+
+      var isMine=(self.dept===s.dept&&self.dept!=='all');
+      var actions='';
+      if(isMine){
+        if(status==='pending')actions='<button class="btn-sm btn-primary" onclick="APP.startStage(\''+pid+'\',\''+s.key+'\')">开始处理</button>';
+        if(status==='in-progress'||over)actions='<button class="btn-sm btn-success" onclick="APP.completeStage(\''+pid+'\',\''+s.key+'\')">标记完成</button>';
+        if(status!=='pending'){
+          actions+=' <button class="btn-sm btn-gray" onclick="APP.toggleNoteEdit(\''+pid+'\',\''+s.key+'\')">编辑备注</button>';
+        }
+      }
+
+      var dateRow='';
+      if(st&&st.ds)dateRow+='<div>开始：'+st.ds+'</div>';
+      if(st&&st.de)dateRow+='<div>'+(status==='done'?'完成：':'截止：')+st.de+(over?' <span style="color:#dc2626;font-weight:700">（已超期'+daysAgo(st.de)+'天）</span>':'')+'</div>';
+      if(!dateRow&&status==='pending')dateRow='<div style="color:var(--text3)">等待 '+s.dept+' 处理</div>';
+      if(!dateRow)dateRow='<div style="color:var(--text3)">-</div>';
+
+      html+='<div class="stage-detail'+(isMine?' current':'')+(status==='done'?' completed':'')+(over?'" style="border-color:#fecaca;background:#fff5f5':'')+'" id="sd-'+pid+'-'+s.key+'">'+
+        '<div class="sd-header">'+
+          '<span class="sd-label">'+(i+1)+'. '+s.name+' <span style="font-size:11px;color:var(--text3);font-weight:400">('+s.dept+')</span></span>'+
+          '<span class="sd-status" style="background:'+bg+';color:'+color+'">'+label+'</span>'+
+        '</div>'+
+        '<div class="sd-info" id="sdi-'+pid+'-'+s.key+'">'+dateRow+
+          (st&&st.h?'<div>处理人：'+st.h+'</div>':'')+
+          (st&&st.n?'<div>备注：'+st.n+'</div>':'')+
+        '</div>'+
+        (actions?'<div class="sd-actions">'+actions+'</div>':'')+
+      '</div>';
+    }
+
+    html+='<div style="display:flex;gap:8px;margin-top:16px">'+
+      '<button class="btn-sm btn-primary" style="flex:1" onclick="APP.openEditModal(\''+pid+'\')">编辑基本信息</button>'+
+      '<button class="btn-sm btn-danger" style="flex:1" onclick="APP.deleteProject(\''+pid+'\')">删除项目</button>'+
+    '</div>';
+
+    document.getElementById('detailContent').innerHTML=html;
+    document.getElementById('detailModal').style.display='flex';
+  },
+
+  closeDetailModal:function(){document.getElementById('detailModal').style.display='none'},
+
+  // Note editing
+  toggleNoteEdit:function(pid,sk){
+    var p=this.findProject(pid);if(!p)return;
+    var infoEl=document.getElementById('sdi-'+pid+'-'+sk);
+    var currentNote=p.stages[sk].n||'';
+    infoEl.innerHTML='<div class="sd-edit">'+
+      '<textarea id="noteEdit-'+pid+'-'+sk+'" style="width:100%;min-height:50px;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;resize:vertical">'+currentNote+'</textarea>'+
+      '<div style="display:flex;gap:6px;margin-top:6px">'+
+        '<button class="btn-sm btn-primary" onclick="APP.saveNote(\''+pid+'\',\''+sk+'\')">保存</button>'+
+        '<button class="btn-sm btn-gray" onclick="APP.openDetail(\''+pid+'\')">取消</button>'+
+      '</div></div>';
+  },
+
+  saveNote:function(pid,sk){
+    var p=this.findProject(pid);if(!p)return;
+    var el=document.getElementById('noteEdit-'+pid+'-'+sk);
+    p.stages[sk].n=el.value.trim();
+    this.saveData();
+    this.renderAll();
+    this.openDetail(pid);
+    this.toast('备注已保存','success');
+  },
+
+  // ==== STAGE ACTIONS ====
+  startMyStage:function(pid){
+    var p=this.findProject(pid);if(!p)return;
+    var sk=this.stageKeyFor(this.dept);
+    this._promptDeadline(pid,sk);
+  },
+
+  completeMyStage:function(pid){
+    var p=this.findProject(pid);if(!p)return;
+    var sk=this.stageKeyFor(this.dept);
+    p.stages[sk].s='done';p.stages[sk].de=today();
+    this.saveData();this.renderAll();
+    this.toast('已标记完成','success');
+  },
+
+  startStage:function(pid,sk){
+    this._promptDeadline(pid,sk);
+  },
+
+  completeStage:function(pid,sk){
+    var p=this.findProject(pid);if(!p)return;
+    p.stages[sk].s='done';p.stages[sk].de=today();
+    this.saveData();this.renderAll();this.openDetail(pid);
+    this.toast('已标记完成','success');
+  },
+
+  // Prompt deadline before starting a stage
+  _promptDeadline:function(pid,sk){
+    var p=this.findProject(pid);if(!p)return;
+    var sName='';for(var i=0;i<STAGES.length;i++){if(STAGES[i].key===sk){sName=STAGES[i].name;break}}
+    var defDate='';var d=new Date();d.setDate(d.getDate()+7);defDate=d.toISOString().split('T')[0];
+    document.getElementById('formContent').innerHTML=
+      '<h2>开始处理 — '+sName+'</h2>'+
+      '<p style="color:var(--text2);font-size:14px;margin-bottom:14px">项目：'+p.name+'</p>'+
+      '<div class="form-group"><label>预计完成日期</label><input type="date" id="f_de" value="'+defDate+'"></div>'+
+      '<div style="display:flex;gap:8px;margin-top:16px">'+
+        '<button class="btn-sm btn-gray" style="flex:1" onclick="APP.closeFormModal()">取消</button>'+
+        '<button class="btn-sm btn-primary" style="flex:1" onclick="APP._doStartStage(\''+pid+'\',\''+sk+'\')">确认开始</button>'+
+      '</div>';
+    document.getElementById('formModal').style.display='flex';
+  },
+
+  _doStartStage:function(pid,sk){
+    var p=this.findProject(pid);if(!p)return;
+    var de=document.getElementById('f_de').value;
+    if(!de){this.toast('请选择预计完成日期','error');return}
+    p.stages[sk].s='in-progress';p.stages[sk].ds=today();p.stages[sk].de=de;p.stages[sk].h=this.dept;
+    this.saveData();this.renderAll();this.closeFormModal();this.openDetail(pid);
+    this.toast('已开始处理，截止日期：'+de,'success');
+  },
+
+  // ==== PROJECT CRUD ====
+  openAddModal:function(){
+    document.getElementById('formContent').innerHTML=
+      '<h2>新建项目</h2>'+
+      '<div class="form-group"><label>合同号 *</label><input id="f_contractNo" placeholder="字母+数字，如 HT20240308001" required></div>'+
+      '<div class="form-group"><label>项目名称 *</label><input id="f_name" placeholder="必填"></div>'+
+      '<div class="form-group"><label>代理商名称</label><input id="f_agent" placeholder="代理商全称"></div>'+
+      '<div class="form-group"><label>项目清单</label><textarea id="f_items" placeholder="设备×数量，逗号分隔"></textarea></div>'+
+      '<div style="display:flex;gap:8px;margin-top:16px">'+
+        '<button class="btn-sm btn-gray" style="flex:1" onclick="APP.closeFormModal()">取消</button>'+
+        '<button class="btn-sm btn-primary" style="flex:1" onclick="APP.doAdd()">创建项目</button>'+
+      '</div>';
+    document.getElementById('formModal').style.display='flex';
+  },
+
+  closeFormModal:function(){document.getElementById('formModal').style.display='none'},
+
+  doAdd:function(){
+    var cn=document.getElementById('f_contractNo').value.trim();
+    var name=document.getElementById('f_name').value.trim();
+    var agent=document.getElementById('f_agent').value.trim();
+    var items=document.getElementById('f_items').value.trim();
+    if(!cn){this.toast('请输入合同号','error');return}
+    if(!/^[a-zA-Z0-9]+$/.test(cn)){this.toast('合同号只支持字母和数字','error');return}
+    if(!name){this.toast('请输入项目名称','error');return}
+
+    var id='P'+new Date().getFullYear()+'-'+String(this.projects.length+1).padStart(3,'0');
+    var stages={};
+    for(var i=0;i<STAGES.length;i++){
+      stages[STAGES[i].key]={s:'pending',ds:'',de:'',h:'',n:''};
+    }
+    // Auto-start first stage with today as start, 14-day default deadline
+    var defDe=new Date();defDe.setDate(defDe.getDate()+14);
+    stages.order.s='in-progress';stages.order.ds=today();stages.order.de=defDe.toISOString().split('T')[0];stages.order.h='项目部';
+
+    this.projects.push({id:id,contractNo:cn,name:name,agent:agent,items:items,stages:stages});
+    this.saveData();this.renderAll();this.closeFormModal();
+    this.toast('项目创建成功','success');
+  },
+
+  openEditModal:function(pid){
+    var p=this.findProject(pid);if(!p)return;
+    this.closeDetailModal();
+    document.getElementById('formContent').innerHTML=
+      '<h2>编辑项目</h2>'+
+      '<div class="form-group"><label>合同号 *</label><input id="f_contractNo" value="'+(p.contractNo||'')+'" placeholder="字母+数字"></div>'+
+      '<div class="form-group"><label>项目名称 *</label><input id="f_name" value="'+p.name+'"></div>'+
+      '<div class="form-group"><label>代理商名称</label><input id="f_agent" value="'+(p.agent||'')+'"></div>'+
+      '<div class="form-group"><label>项目清单</label><textarea id="f_items">'+(p.items||'')+'</textarea></div>'+
+      '<div style="display:flex;gap:8px;margin-top:16px">'+
+        '<button class="btn-sm btn-gray" style="flex:1" onclick="APP.closeFormModal()">取消</button>'+
+        '<button class="btn-sm btn-primary" style="flex:1" onclick="APP.doEdit(\''+pid+'\')">保存修改</button>'+
+      '</div>';
+    document.getElementById('formModal').style.display='flex';
+  },
+
+  doEdit:function(pid){
+    var p=this.findProject(pid);if(!p)return;
+    p.contractNo=document.getElementById('f_contractNo').value.trim();
+    p.name=document.getElementById('f_name').value.trim();
+    p.agent=document.getElementById('f_agent').value.trim();
+    p.items=document.getElementById('f_items').value.trim();
+    if(!p.contractNo){this.toast('合同号不能为空','error');return}
+    if(!/^[a-zA-Z0-9]+$/.test(p.contractNo)){this.toast('合同号只支持字母和数字','error');return}
+    if(!p.name){this.toast('项目名称不能为空','error');return}
+    this.saveData();this.renderAll();this.closeFormModal();
+    this.toast('保存成功','success');
+  },
+
+  deleteProject:function(pid){
+    var self=this;
+    this.showConfirm('删除项目','确定删除该项目？此操作不可恢复。','确认删除','btn-danger',function(){
+      self.projects=self.projects.filter(function(x){return x.id!==pid});
+      self.saveData();self.renderAll();self.closeDetailModal();
+      self.toast('已删除','info');
+    });
+  },
+
+  confirmClear:function(){
+    var self=this;
+    this.showConfirm('清空所有数据','将删除全部 '+this.projects.length+' 个项目，不可恢复。建议先导出备份。','确认清空','btn-danger',function(){
+      self.projects=[];
+      self.saveData();
+      self.renderAll();
+      self.toast('已清空','info');
+    });
+  },
+
+  // ==== CONFIRM DIALOG ====
+  showConfirm:function(title,msg,btnText,btnClass,cb){
+    document.getElementById('confirmTitle').textContent=title;
+    document.getElementById('confirmMsg').textContent=msg;
+    var btn=document.getElementById('confirmBtn');
+    btn.textContent=btnText;
+    btn.className=btnClass;
+    this.confirmCb=cb;
+    document.getElementById('confirmDialog').style.display='flex';
+  },
+  runConfirm:function(){
+    if(this.confirmCb){this.confirmCb();this.confirmCb=null}
+    document.getElementById('confirmDialog').style.display='none';
+  },
+  cancelConfirm:function(){
+    this.confirmCb=null;
+    document.getElementById('confirmDialog').style.display='none';
+  },
+
+  // ==== EXPORT / IMPORT ====
+  exportData:function(){
+    var blob=new Blob([JSON.stringify(this.projects,null,2)],{type:'application/json'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='感创项目数据_'+today()+'.json';a.click();
+    this.toast('导出成功','success');
+  },
+
+  openImport:function(){
+    document.getElementById('importContent').innerHTML=
+      '<h2>导入项目数据</h2>'+
+      '<p style="color:var(--text2);font-size:14px;margin-bottom:12px">选择之前导出的 JSON 备份文件，相同项目ID会更新，新项目会追加。</p>'+
+      '<input type="file" accept=".json" id="importFile" style="width:100%;padding:12px;border:2px dashed var(--border);border-radius:8px;margin-bottom:8px">'+
+      '<p id="importHint" style="font-size:12px;color:var(--text3)"></p>'+
+      '<div style="display:flex;gap:8px;margin-top:14px">'+
+        '<button class="btn-sm btn-gray" style="flex:1" onclick="APP.closeImportModal()">取消</button>'+
+        '<button class="btn-sm btn-primary" style="flex:1" onclick="APP.doImport()">确认导入</button>'+
+      '</div>';
+    document.getElementById('importModal').style.display='flex';
+  },
+
+  closeImportModal:function(){document.getElementById('importModal').style.display='none'},
+
+  doImport:function(){
+    var file=document.getElementById('importFile').files[0];
+    if(!file){this.toast('请选择文件','error');return}
+    var self=this;
+    var reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        var imported=JSON.parse(e.target.result);
+        if(!Array.isArray(imported))throw new Error('格式不对');
+        imported.forEach(function(imp){
+          var idx=self.projects.findIndex(function(p){return p.id===imp.id});
+          if(idx>=0)self.projects[idx]=imp;
+          else self.projects.push(imp);
+        });
+        self.saveData();self.renderAll();self.closeImportModal();
+        self.toast('导入成功，共'+imported.length+'条','success');
+      }catch(err){self.toast('文件格式错误','error')}
+    };
+    reader.readAsText(file);
+  },
+
+  openBackup:function(){
+    document.getElementById('backupContent').innerHTML=
+      '<h2>数据管理</h2>'+
+      '<p style="color:var(--text2);font-size:14px;margin-bottom:14px">当前共 '+this.projects.length+' 个项目。数据存储在浏览器本地，建议定期导出备份。</p>'+
+      '<div style="display:flex;flex-direction:column;gap:8px">'+
+        '<button class="btn-sm btn-primary" onclick="APP.exportData();APP.closeBackup()">导出 JSON 备份</button>'+
+        '<button class="btn-sm btn-outline" onclick="APP.closeBackup();APP.openImport()">导入恢复数据</button>'+
+        '<button class="btn-sm btn-gray" style="color:var(--danger)" onclick="APP.closeBackup();APP.confirmClear()">清空所有数据</button>'+
+        '<button class="btn-sm btn-gray" onclick="APP.closeBackup()">关闭</button>'+
+      '</div>';
+    document.getElementById('backupModal').style.display='flex';
+  },
+  closeBackup:function(){document.getElementById('backupModal').style.display='none'},
+
+  // ==== HELPERS ====
+  findProject:function(pid){
+    for(var i=0;i<this.projects.length;i++){if(this.projects[i].id===pid)return this.projects[i]}
+    return null;
+  },
+  toast:function(msg,type){
+    var existing=document.querySelector('.toast');if(existing)existing.remove();
+    var t=document.createElement('div');t.className='toast '+(type||'info');t.textContent=msg;
+    document.body.appendChild(t);
+    setTimeout(function(){t.remove()},2500);
+  }
+};
+
+// ==== INIT ====
+if(document.readyState!=='loading')APP.init();
+else document.addEventListener('DOMContentLoaded',function(){APP.init()});
+</script>
+</body>
+</html>
