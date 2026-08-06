@@ -310,7 +310,8 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 .gantt-header h2{font-size:18px;margin:0}
 .gantt-body{flex:1;overflow:auto;display:flex}
 .gantt-labels{flex-shrink:0;width:140px;border-right:1px solid var(--border);background:var(--bg)}
-.gantt-label-item{padding:8px 10px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);height:44px;display:flex;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+@media(min-width:768px){.gantt-labels{width:200px}}
+.gantt-label-item{padding:8px 10px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);min-height:44px;display:flex;align-items:center;white-space:normal;word-break:break-all;line-height:1.3;cursor:pointer}
 .gantt-label-item:hover{background:var(--primary-light)}
 .gantt-chart{flex:1;overflow-x:auto;overflow-y:hidden}
 .gantt-tooltip{position:absolute;background:#1a1a2e;color:#fff;font-size:11px;padding:6px 10px;border-radius:6px;pointer-events:none;z-index:400;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.3)}
@@ -872,7 +873,14 @@ var APP = {
     empty.style.display='none';
 
     var self=this;
-    container.innerHTML=list.map(function(p){return self.cardHTML(p)}).join('');
+    var cardsHtml='';
+    for(var ci=0;ci<list.length;ci++){
+      try{cardsHtml+=self.cardHTML(list[ci])}catch(e){
+        console.error('卡片渲染异常:',list[ci].id,e);
+        cardsHtml+='<div class="project-card" style="border-color:#fecaca"><div class="project-title">'+list[ci].name+'</div><div style="font-size:12px;color:var(--danger)">(渲染异常，请检查数据)</div></div>';
+      }
+    }
+    container.innerHTML=cardsHtml;
 
     // Update filter tab
     var tabs=document.querySelectorAll('.filter-tab');
@@ -889,6 +897,17 @@ var APP = {
     var curStatus=(curSt&&curSt.s)?curSt.s:'pending';
     var stageOverdue=isOverdue(curSt);
     var isInParallel=isParallelStage(STAGES[curIdx].key);
+
+    // myIdx: index of the stage belonging to the current department
+    var myIdx=-1;
+    if(this.dept!=='all'){
+      for(var mi=0;mi<STAGES.length;mi++){
+        if(STAGES[mi].dept===this.dept){myIdx=mi;break}
+      }
+    }
+
+    // allDone: are ALL stages complete?
+    var allDone=STAGES.every(function(s){var st=p.stages[s.key];return st&&st.s==='done'});
 
     // Count active parallel stages
     var parallelActive=0,parallelDone=0;
@@ -910,8 +929,6 @@ var APP = {
         (isInParallel?'并行阶段 · '+STAGES[curIdx].name+'中':'第'+(curIdx+1)+'步 · '+STAGES[curIdx].name+'中');
     }
     else if(curStatus==='done'){
-      // Check if all done
-      var allDone=STAGES.every(function(s){var st=p.stages[s.key];return st&&st.s==='done'});
       badgeCls='sb-done';badgeText=allDone?'全部完成':('等待后续阶段');
     }
     else if(curIdx>0){badgeText='待'+STAGES[curIdx].dept+'处理'}
@@ -1183,8 +1200,11 @@ var APP = {
     var defDe=new Date();defDe.setDate(defDe.getDate()+14);
     stages.order.s='in-progress';stages.order.ds=today();stages.order.de=defDe.toISOString().split('T')[0];stages.order.h='项目部';
 
-    this.projects.push({id:id,contractNo:cn,name:name,agent:agent,items:items,stages:stages});
-    this.saveData();this.renderAll();this.closeFormModal();
+    var newProject={id:id,contractNo:cn,name:name,agent:agent,items:items,stages:stages};
+    this.projects.push(newProject);
+    try{this.saveData()}catch(e){console.error('saveData error:',e)}
+    try{this.renderAll()}catch(e){console.error('renderAll error:',e)}
+    this.closeFormModal();
     this.toast('项目创建成功','success');
   },
 
