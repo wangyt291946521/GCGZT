@@ -89,6 +89,14 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 .pipeline-step .step-count{font-size:18px;font-weight:700;margin-top:1px}
 .pipeline-step.active .step-count{color:var(--primary)}
 .pipeline-step .step-sub{font-size:10px;color:var(--text3)}
+/* Parallel pipeline steps */
+.pipeline-step.parallel{border-style:dashed;border-color:#fcd34d}
+.pipeline-step.parallel.active{border-color:var(--primary);border-style:solid}
+.pipeline-step.parallel::after{font-size:16px}
+.sp-dot.parallel{border-width:1.5px;border-style:dashed;border-color:#fcd34d}
+.sp-dot.parallel.done{background:#059669;border-color:#059669;border-style:solid}
+.sp-dot.parallel.in-progress{background:#4f46e5;border-color:#4f46e5;border-style:solid;box-shadow:0 0 0 3px rgba(79,70,229,.25)}
+.sp-dot.parallel.delayed{background:#dc2626;border-color:#dc2626;border-style:solid}
 .pipeline-step::after{
   content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);
   width:7px;height:7px;border-top:1.5px solid var(--border);
@@ -295,6 +303,21 @@ button{cursor:pointer;border:none;background:none;color:inherit}
   .action-bar{padding:12px 24px;padding-bottom:12px}
   .project-list{display:grid;grid-template-columns:repeat(2,1fr)}
 }
+/* === Gantt Chart === */
+.gantt-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
+.gantt-modal{background:var(--surface);border-radius:var(--radius);width:100%;max-width:100vw;height:90vh;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.gantt-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.gantt-header h2{font-size:18px;margin:0}
+.gantt-body{flex:1;overflow:auto;display:flex}
+.gantt-labels{flex-shrink:0;width:140px;border-right:1px solid var(--border);background:var(--bg)}
+.gantt-label-item{padding:8px 10px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);height:44px;display:flex;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.gantt-label-item:hover{background:var(--primary-light)}
+.gantt-chart{flex:1;overflow-x:auto;overflow-y:hidden}
+.gantt-tooltip{position:absolute;background:#1a1a2e;color:#fff;font-size:11px;padding:6px 10px;border-radius:6px;pointer-events:none;z-index:400;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.gantt-legend{display:flex;gap:14px;align-items:center;margin-left:16px;flex-wrap:wrap}
+.gantt-legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2)}
+.gantt-legend-dot{width:10px;height:10px;border-radius:3px}
+
 @media(min-width:1024px){
   .project-list{grid-template-columns:repeat(3,1fr)}
 }
@@ -367,6 +390,10 @@ button{cursor:pointer;border:none;background:none;color:inherit}
   <button class="btn-icon" onclick="APP.openAnalytics()" title="数据分析" style="font-size:13px;font-weight:600;color:var(--primary);background:var(--primary-light);border-radius:16px;padding:5px 12px;width:auto;gap:3px">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
     分析
+  </button>
+  <button class="btn-icon" onclick="APP.openGantt()" title="甘特图" style="font-size:13px;font-weight:600;color:#059669;background:#dcfce7;border-radius:16px;padding:5px 12px;width:auto;gap:3px">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="4" rx="1" fill="#059669"/><rect x="5" y="11" width="14" height="4" rx="1" fill="#059669"/><rect x="3" y="18" width="18" height="4" rx="1" fill="#059669"/></svg>
+    甘特图
   </button>
   <button class="btn-icon" onclick="APP.openBackup()" title="数据管理">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -445,6 +472,20 @@ button{cursor:pointer;border:none;background:none;color:inherit}
   <div class="modal" id="analyticsContent"></div>
 </div>
 
+<!-- ===== Gantt Modal ===== -->
+<div class="gantt-overlay" id="ganttModal" style="display:none" onclick="if(event.target===this)APP.closeGantt()">
+  <div class="gantt-modal">
+    <div class="gantt-header">
+      <h2>📊 项目甘特图</h2>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="gantt-legend" id="ganttLegend"></div>
+        <button class="btn-sm btn-gray" onclick="APP.closeGantt()" style="font-size:13px">关闭</button>
+      </div>
+    </div>
+    <div class="gantt-body" id="ganttBody"></div>
+  </div>
+</div>
+
 <!-- ===== Confirm Dialog ===== -->
 <div class="confirm-overlay" id="confirmDialog" style="display:none">
   <div class="confirm-box">
@@ -475,18 +516,47 @@ var API_BASE = (function(){
 // ===== STAGES =====
 var STAGES = [
   {key:'order',    name:'执行单',   dept:'项目部', desc:'合同号、项目名称、代理商、项目清单'},
-  {key:'purchase', name:'采购',     dept:'采购部', desc:'采购时间、到货情况'},
-  {key:'dev',      name:'研发',     dept:'研发部', desc:'定制开发内容与进度'},
-  {key:'production',name:'生产',    dept:'生产部', desc:'设备生产与安装情况'},
+  {key:'purchase', name:'采购',     dept:'采购部', desc:'采购时间、到货情况',           parallel:true},
+  {key:'dev',      name:'研发',     dept:'研发部', desc:'定制开发内容与进度',           parallel:true},
+  {key:'production',name:'生产',    dept:'生产部', desc:'设备生产与安装情况',           parallel:true},
   {key:'shipping', name:'发货',     dept:'发货',   desc:'发货日期与物流信息'},
   {key:'maintenance',name:'维护开通',dept:'维护部', desc:'开通日期与备注'},
   {key:'payment',  name:'回款',     dept:'财务部', desc:'回款日期、金额、状态'}
 ];
+var PARALLEL_KEYS = ['purchase','dev','production']; // 并行阶段组
 
 // ===== HELPERS =====
 function today(){return new Date().toISOString().split('T')[0]}
 function daysAgo(d){if(!d)return 0;return Math.floor((new Date()-new Date(d+'T00:00:00'))/86400000)}
 function isOverdue(st){return st&&st.s==='in-progress'&&st.de&&st.de<today()}
+function isParallelStage(key){return PARALLEL_KEYS.indexOf(key)>=0}
+// 找项目的「当前阶段」：跳过已完成的顺序阶段，并行组里任一个进行中都算当前
+// 如果并行组全部完成，才继续往下走到发货
+function findCurrentStageIdx(p){
+  var allParallelDone = PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&st.s==='done'});
+  // 如果并行组未全部完成，当前阶段在并行组内找第一个进行中的（或第一个待启动的）
+  if(!allParallelDone){
+    for(var i=0;i<STAGES.length;i++){
+      if(isParallelStage(STAGES[i].key)){
+        var st=p.stages[STAGES[i].key];
+        if(st&&(st.s==='in-progress'||st.s==='pending'))return i; // 第一个未完成的并行阶段
+      }
+    }
+    return 1; // 默认指向第一个并行阶段（采购）
+  }
+  // 并行组全部完成，按顺序往下找
+  for(var i=0;i<STAGES.length;i++){
+    var st=p.stages[STAGES[i].key];
+    if(!isParallelStage(STAGES[i].key)){
+      if(st&&st.s==='in-progress')return i;
+      if(st&&st.s==='pending')return i;
+    }
+  }
+  // 检查是否有顺序阶段在并行组之前未完成
+  var orderSt=p.stages.order;
+  if(orderSt&&orderSt.s==='pending')return 0;
+  return STAGES.length-1;
+}
 
 // ===== DEMO DATA =====
 // stage model: {s:'pending'|'in-progress'|'done', ds:开始日期, de:截止/完成日期, h:处理人, n:备注}
@@ -665,11 +735,12 @@ var APP = {
       });
       var isActive=(self.dept==='all'||self.dept===s.dept);
       var ovTxt=overdue?' <span style="color:var(--danger);font-size:10px">('+overdue+'超期)</span>':'';
-      html+='<div class="pipeline-step'+(isActive?' active':'')+'" onclick="APP.switchDept(\''+s.dept+'\')">'+
+      var parallelMark=s.parallel?'<div style="font-size:9px;color:var(--primary);margin-top:2px">∥ 并行</div>':'';
+      html+='<div class="pipeline-step'+(isActive?' active':'')+(s.parallel?' parallel':'')+'" onclick="APP.switchDept(\''+s.dept+'\')">'+
         '<div class="step-num">'+(i+1)+'</div>'+
         '<div class="step-name">'+s.name+'</div>'+
         '<div class="step-count">'+(inProg+overdue)+'</div>'+
-        '<div class="step-sub">进行中'+ovTxt+' | '+pending+'待处理</div>'+
+        '<div class="step-sub">进行中'+ovTxt+' | '+pending+'待处理</div>'+parallelMark+
       '</div>';
     }
     document.getElementById('pipelineBar').innerHTML=html;
@@ -812,37 +883,50 @@ var APP = {
   // ---- Card ----
   cardHTML:function(p){
     // Find current stage — overdue is computed, not stored
-    var curIdx=0,curStatus='pending';
-    for(var i=0;i<STAGES.length;i++){
-      var st=p.stages[STAGES[i].key];
-      if(st&&st.s==='in-progress'){curIdx=i;curStatus='in-progress';break}
-      if(st&&st.s==='done'){curIdx=i;curStatus='done'}
-      else if(curStatus==='done'){curIdx=i;curStatus='pending'}
-    }
-    // After loop, check if current stage is overdue
+    // Use parallel-aware current stage finder
+    var curIdx=findCurrentStageIdx(p);
     var curSt=p.stages[STAGES[curIdx].key];
+    var curStatus=(curSt&&curSt.s)?curSt.s:'pending';
     var stageOverdue=isOverdue(curSt);
+    var isInParallel=isParallelStage(STAGES[curIdx].key);
+
+    // Count active parallel stages
+    var parallelActive=0,parallelDone=0;
+    if(curIdx>=1&&curIdx<=3){
+      PARALLEL_KEYS.forEach(function(k){
+        var st=p.stages[k];
+        if(st&&st.s==='in-progress')parallelActive++;
+        if(st&&st.s==='done')parallelDone++;
+      });
+    }
 
     // Badge
     var badgeCls='sb-pending',badgeText='待启动';
-    if(stageOverdue){badgeCls='sb-delayed';badgeText='第'+(curIdx+1)+'步 · 已超期'+daysAgo(curSt.de)+'天'}
-    else if(curStatus==='in-progress'){badgeCls='sb-progress';badgeText='第'+(curIdx+1)+'步 · '+STAGES[curIdx].name+'中'}
-    else if(curStatus==='done'){badgeCls='sb-done';badgeText='已完成'}
+    if(stageOverdue){badgeCls='sb-delayed';badgeText=STAGES[curIdx].name+' · 已超期'+daysAgo(curSt.de)+'天'}
+    else if(curStatus==='in-progress'){
+      badgeCls='sb-progress';
+      badgeText=isInParallel&&parallelActive>1?
+        '并行阶段 · '+parallelActive+'部门处理中':
+        (isInParallel?'并行阶段 · '+STAGES[curIdx].name+'中':'第'+(curIdx+1)+'步 · '+STAGES[curIdx].name+'中');
+    }
+    else if(curStatus==='done'){
+      // Check if all done
+      var allDone=STAGES.every(function(s){var st=p.stages[s.key];return st&&st.s==='done'});
+      badgeCls='sb-done';badgeText=allDone?'全部完成':('等待后续阶段');
+    }
     else if(curIdx>0){badgeText='待'+STAGES[curIdx].dept+'处理'}
 
-    // Stage dots
-    var myKey=this.dept!=='all'?this.stageKeyFor(this.dept):'';
-    var myIdx=-1;for(var i=0;i<STAGES.length;i++){if(STAGES[i].key===myKey){myIdx=i;break}}
-
+    // Stage dots — highlight parallel group
     var dots='';
     for(var i=0;i<STAGES.length;i++){
       var st=p.stages[STAGES[i].key];
       var cls='sp-dot';
+      if(isParallelStage(STAGES[i].key))cls+=' parallel';
       if(st&&st.s==='done')cls+=' done';
       else if(isOverdue(st))cls+=' delayed';
       else if(i===curIdx&&curStatus==='in-progress'&&!stageOverdue)cls+=' in-progress';
       if(i===myIdx&&st&&st.s!=='done'&&st.s!=='in-progress')cls+=' my-dept';
-      dots+='<div class="'+cls+'" title="'+STAGES[i].name+'"></div>';
+      dots+='<div class="'+cls+'" title="'+STAGES[i].name+(isParallelStage(STAGES[i].key)?' (并行)':'')+'"></div>';
     }
 
     // Stage labels
@@ -881,10 +965,14 @@ var APP = {
       '<div class="stage-pipeline">'+dots+'</div>'+
       '<div class="stage-labels">'+labels+'</div>'+
       '<div class="project-footer">'+
-        (curStatus==='done'?'<span style="color:var(--success);font-weight:600">全部完成</span>':
-         stageOverdue?'<span style="color:var(--danger)">'+STAGES[curIdx].dept+'已超期'+daysAgo(curSt.de)+'天</span>':
-         curStatus==='in-progress'?'<span>'+STAGES[curIdx].dept+'处理中 · 截止'+curSt.de+'</span>':
-         '<span>等待'+STAGES[curIdx].dept+'处理</span>')+
+        (function(){
+          if(curStatus==='done'&&allDone)return '<span style="color:var(--success);font-weight:600">✓ 全部完成</span>';
+          if(curStatus==='done')return '<span style="color:var(--text2)">待'+STAGES[curIdx].dept+'处理</span>';
+          if(stageOverdue)return '<span style="color:var(--danger)">'+STAGES[curIdx].dept+'已超期'+daysAgo(curSt.de)+'天</span>';
+          if(isInParallel&&parallelActive>1)return '<span style="color:var(--primary)">'+parallelActive+'部门并行处理中</span>';
+          if(curStatus==='in-progress')return '<span>'+STAGES[curIdx].dept+'处理中'+(curSt.de?' · 截止'+curSt.de:'')+'</span>';
+          return '<span>等待'+STAGES[curIdx].dept+'处理</span>';
+        })()+
         actionBtn+
       '</div>'+
     '</div>';
@@ -906,6 +994,15 @@ var APP = {
       var s=STAGES[i];
       var st=p.stages[s.key];
       var status=(st&&st.s)?st.s:'pending';
+
+      // Parallel group header
+      if(s.parallel&&i===1){
+        html+='<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:6px">'+
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 4v16m-8-8h16" stroke="#d97706" stroke-width="2"/></svg>'+
+          '<span style="font-size:12px;color:#92400e;font-weight:600">并行阶段</span>'+
+          '<span style="font-size:11px;color:#a16207">— 采购、研发、生产可同步进行，全部完成后自动进入发货</span>'+
+        '</div>';
+      }
 
       var over=isOverdue(st);
       var label='待启动',color='#94a3b8',bg='#f1f5f9';
@@ -987,6 +1084,15 @@ var APP = {
     var p=this.findProject(pid);if(!p)return;
     var sk=this.stageKeyFor(this.dept);
     p.stages[sk].s='done';p.stages[sk].de=today();
+    // Parallel completion check
+    if(isParallelStage(sk)){
+      var allDone=PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&st.s==='done'});
+      if(allDone&&p.stages.shipping&&p.stages.shipping.s==='pending'){
+        p.stages.shipping.s='in-progress';
+        p.stages.shipping.ds=today();
+        var defDe=new Date();defDe.setDate(defDe.getDate()+7);p.stages.shipping.de=defDe.toISOString().split('T')[0];
+      }
+    }
     this.saveData();this.renderAll();
     this.toast('已标记完成','success');
   },
@@ -998,6 +1104,21 @@ var APP = {
   completeStage:function(pid,sk){
     var p=this.findProject(pid);if(!p)return;
     p.stages[sk].s='done';p.stages[sk].de=today();
+    // If this is a parallel stage, check if all parallel stages done → auto-start shipping
+    if(isParallelStage(sk)){
+      var allDone=PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&st.s==='done'});
+      if(allDone){
+        // Auto-start shipping if pending, inherit dates from last completed parallel stage
+        if(p.stages.shipping&&p.stages.shipping.s==='pending'){
+          p.stages.shipping.s='in-progress';
+          p.stages.shipping.ds=today();
+          var lastDate='';
+          PARALLEL_KEYS.forEach(function(k){var d=p.stages[k].de;if(d&&d>lastDate)lastDate=d});
+          var defDe=new Date();defDe.setDate(defDe.getDate()+7);var deStr=defDe.toISOString().split('T')[0];
+          p.stages.shipping.de=lastDate||deStr;
+        }
+      }
+    }
     this.saveData();this.renderAll();this.openDetail(pid);
     this.toast('已标记完成','success');
   },
@@ -1199,6 +1320,130 @@ var APP = {
     document.getElementById('analyticsModal').style.display='flex';
   },
   closeAnalytics:function(){document.getElementById('analyticsModal').style.display='none'},
+
+  // ==== GANTT ====
+  openGantt:function(){
+    if(!this.projects.length){this.toast('暂无项目数据','info');return}
+    this.renderGantt();
+    document.getElementById('ganttModal').style.display='flex';
+  },
+  closeGantt:function(){document.getElementById('ganttModal').style.display='none'},
+  renderGantt:function(){
+    var self=this,projects=this.projects;
+    // Find date range: earliest start to latest deadline across all stages
+    var minDate=null,maxDate=null;
+    projects.forEach(function(p){
+      STAGES.forEach(function(s){
+        var st=p.stages[s.key];if(!st)return;
+        if(st.ds&&(!minDate||st.ds<minDate))minDate=st.ds;
+        if(st.de&&(!maxDate||st.de>maxDate))maxDate=st.de;
+      });
+    });
+    if(!minDate)minDate=today();
+    if(!maxDate||maxDate<minDate){var d=new Date(minDate+'T00:00:00');d.setMonth(d.getMonth()+3);maxDate=d.toISOString().split('T')[0]}
+
+    var totalDays=Math.max(Math.floor((new Date(maxDate+'T00:00:00')-new Date(minDate+'T00:00:00'))/86400000)+1,30);
+    var ROW_H=44,HEADER_H=60,LABEL_W=140,CHART_PAD=12;
+    var dayW=Math.max(totalDays>60?6:10,4); // px per day
+    var chartW=CHART_PAD*2+totalDays*dayW;
+    var totalH=HEADER_H+projects.length*ROW_H+20;
+
+    // Month labels
+    var months=[];
+    var cur=new Date(minDate+'T00:00:00');cur.setDate(1);
+    while(cur<=new Date(maxDate+'T00:00:00')){
+      months.push({y:cur.getFullYear(),m:cur.getMonth(),label:(cur.getMonth()+1)+'月'});
+      cur.setMonth(cur.getMonth()+1);
+    }
+
+    var svg='<svg width="'+chartW+'" height="'+totalH+'" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,sans-serif">';
+    svg+='<rect width="'+chartW+'" height="'+totalH+'" fill="#fafbfc"/>';
+
+    // Month dividers
+    svg+='<line x1="'+CHART_PAD+'" y1="'+HEADER_H+'" x2="'+(chartW-CHART_PAD)+'" y2="'+HEADER_H+'" stroke="#e2e8f0"/>';
+    for(var mi=0;mi<months.length;mi++){
+      var monthStart=new Date(months[mi].y,months[mi].m,1);
+      var daysFromStart=Math.floor((monthStart-new Date(minDate+'T00:00:00'))/86400000);
+      var mx=CHART_PAD+daysFromStart*dayW;
+      svg+='<text x="'+mx+'" y="28" font-size="12" font-weight="600" fill="#64748b">'+months[mi].label+'</text>';
+      svg+='<line x1="'+mx+'" y1="36" x2="'+mx+'" y2="'+HEADER_H+'" stroke="#e2e8f0" stroke-dasharray="3,3"/>';
+    }
+    // Today line
+    var todayDays=Math.floor((new Date()-new Date(minDate+'T00:00:00'))/86400000);
+    var todayX=CHART_PAD+todayDays*dayW;
+    if(todayDays>=0&&todayDays<=totalDays){
+      svg+='<line x1="'+todayX+'" y1="'+HEADER_H+'" x2="'+todayX+'" y2="'+totalH+'" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="6,3"/>'+
+        '<text x="'+(todayX-14)+'" y="'+(HEADER_H-4)+'" font-size="10" fill="#dc2626" font-weight="700">今天</text>';
+    }
+
+    // Row backgrounds
+    for(var i=0;i<projects.length;i++){
+      var ry=HEADER_H+i*ROW_H;
+      svg+='<rect x="'+CHART_PAD+'" y="'+(ry+2)+'" width="'+(chartW-CHART_PAD*2)+'" height="'+(ROW_H-3)+'" fill="'+(i%2?'#f8fafc':'#fff')+'" rx="4"/>';
+    }
+
+    // Stage bars
+    var statusColors={done:'#059669','in-progress':'#4f46e5',pending:'#cbd5e1'};
+    projects.forEach(function(p,pi){
+      var ry=HEADER_H+pi*ROW_H;
+      STAGES.forEach(function(s){
+        var st=p.stages[s.key];if(!st)return;
+        var color=statusColors[st.s]||'#cbd5e1';
+        if(st.s==='in-progress'&&isOverdue(st))color='#dc2626';
+        var hasDates=st.ds&&st.de;
+        if(hasDates){
+          var barStart=Math.floor((new Date(st.ds+'T00:00:00')-new Date(minDate+'T00:00:00'))/86400000);
+          var barEnd=Math.floor((new Date(st.de+'T00:00:00')-new Date(minDate+'T00:00:00'))/86400000)+1;
+          var bx=CHART_PAD+Math.max(0,barStart)*dayW;
+          var bw=Math.max(2,(barEnd-barStart)*dayW);
+          var by=ry+10,bh=ROW_H-20;
+          svg+='<rect x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+bh+'" rx="3" fill="'+color+'" opacity="0.85"/>';
+          // Text label inside bar (if wide enough)
+          if(bw>40){
+            var label=s.name.replace('维护开通','维护').replace('生产','生产');
+            svg+='<text x="'+(bx+bw/2)+'" y="'+(by+bh/2+4)+'" text-anchor="middle" font-size="10" fill="#fff" font-weight="500">'+label+'</text>';
+          }
+          // If done, add a completion marker
+          if(st.s==='done'){
+            svg+='<circle cx="'+(bx+bw-3)+'" cy="'+(by+bh/2)+'" r="5" fill="#fff" opacity="0.8"/>';
+            svg+='<text x="'+(bx+bw-5)+'" y="'+(by+bh/2+3)+'" text-anchor="middle" font-size="7" fill="'+color+'">✓</text>';
+          }
+        }else if(st.s==='pending'){
+          // Show a thin placeholder for pending stages (at expected position)
+          var idx=STAGES.indexOf(s);
+          if(idx>0&&STAGES[idx-1]){
+            var prevSt=p.stages[STAGES[idx-1].key];
+            if(prevSt&&prevSt.de){
+              var pendStart=Math.floor((new Date(prevSt.de+'T00:00:00')-new Date(minDate+'T00:00:00'))/86400000)+1;
+              var px=CHART_PAD+pendStart*dayW;
+              var py=ry+20,ph=ROW_H-36;
+              svg+='<rect x="'+px+'" y="'+py+'" width="24" height="'+ph+'" rx="2" fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,3"/>';
+            }
+          }
+        }
+      });
+    });
+
+    svg+='</svg>';
+
+    // Build labels HTML
+    var labels='';
+    projects.forEach(function(p,pi){
+      labels+='<div class="gantt-label-item" onclick="APP.openDetail(\''+p.id+'\')" title="'+p.name+'">'+
+        '<span style="color:var(--primary);margin-right:4px">'+(pi+1)+'.</span>'+p.name+'</div>';
+    });
+
+    // Legend
+    document.getElementById('ganttLegend').innerHTML=
+      '<div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#059669"></div>已完成</div>'+
+      '<div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#4f46e5"></div>进行中</div>'+
+      '<div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#dc2626"></div>已超期</div>'+
+      '<div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#e2e8f0;border:1px dashed #94a3b8"></div>待启动</div>';
+
+    document.getElementById('ganttBody').innerHTML=
+      '<div class="gantt-labels"><div style="height:'+HEADER_H+'px;padding:12px 10px;font-size:11px;color:var(--text2);font-weight:600;border-bottom:1px solid var(--border)">项目名称</div>'+labels+'</div>'+
+      '<div class="gantt-chart">'+svg+'</div>';
+  },
   renderAnalytics:function(){
     var self=this;
     var total=this.projects.length;
