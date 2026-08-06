@@ -464,7 +464,7 @@ var APP = {
       badge.textContent='远程API';
       badge.style.background='#dbeafe';badge.style.color='#2563eb';
     }else if(API_BASE){
-      badge.textContent='服务器模式';
+      badge.textContent='在线(数据存本地)';
       badge.style.background='#dcfce7';badge.style.color='#059669';
     }else{
       badge.textContent='本地模式';
@@ -475,30 +475,42 @@ var APP = {
   // ==== DATA ====
   loadData:function(){
     var self=this;
-    // ---- API mode ----
+    // 1. 始终先从 localStorage 加载（优先保障数据不丢）
+    var local=localStorage.getItem('wb_gc_projects_v2');
+    if(local){try{this.projects=JSON.parse(local)}catch(e){this.projects=[]}}
+    this._migrateStages();
+    // 2. 如果本地没有数据，直接用 DEMO
+    if(!this.projects.length){this.projects=JSON.parse(JSON.stringify(DEMO));this.saveData()}
+    // 3. API 模式下，尝试从服务器同步（服务端数据多/新则覆盖本地）
     if(API_BASE){
       fetch(API_BASE+'/projects')
         .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
         .then(function(data){
-          self.projects=data;
-          self._migrateStages();
-          if(!self.projects.length){self.projects=JSON.parse(JSON.stringify(DEMO));self.saveData()}
+          if(data.length>self.projects.length||(data.length===self.projects.length&&data.length>0&&!local)){
+            // 服务器数据更多，或本地没有数据 → 用服务器的
+            self.projects=data;
+            self._migrateStages();
+            localStorage.setItem('wb_gc_projects_v2',JSON.stringify(data));
+          }else if(!data.length&&self.projects.length){
+            // 服务器为空但本地有数据 → 把本地数据推上去
+            self._syncToServer();
+          }
           self.renderAll();
         })
         .catch(function(e){
-          console.error('服务器连接失败:',e);
-          self.projects=JSON.parse(JSON.stringify(DEMO));
+          console.log('服务器同步跳过(使用本地数据):',e.message);
           self.renderAll();
-          self.toast('服务器未连接，已加载示例数据','error');
         });
-      return;
+    }else{
+      this.renderAll();
     }
-    // ---- localStorage mode ----
-    var raw=localStorage.getItem('wb_gc_projects_v2');
-    if(raw){try{this.projects=JSON.parse(raw)}catch(e){this.projects=[]}}
-    this._migrateStages();
-    if(!this.projects.length){this.projects=JSON.parse(JSON.stringify(DEMO));this.saveData()}
-    this.renderAll();
+  },
+
+  _syncToServer:function(){
+    if(API_BASE){
+      fetch(API_BASE+'/projects',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.projects)})
+        .catch(function(){});
+    }
   },
 
   _migrateStages:function(){
@@ -520,14 +532,14 @@ var APP = {
   },
 
   saveData:function(){
-    // ---- API mode ----
+    // 始终写入 localStorage（第一优先级）
+    localStorage.setItem('wb_gc_projects_v2',JSON.stringify(this.projects));
+    // API 模式下同步到服务器（备份）
     if(API_BASE){
       fetch(API_BASE+'/projects',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.projects)})
-        .catch(function(){APP.toast('保存失败，请检查服务器','error')});
-      return;
+        .catch(function(){});
     }
-    // ---- localStorage mode ----
-    localStorage.setItem('wb_gc_projects_v2',JSON.stringify(this.projects));
+    // 备份提醒
     if(this.projects.length>=10&&!localStorage.getItem('wb_gc_backup_hint2')){
       localStorage.setItem('wb_gc_backup_hint2','1');
       this.toast('数据已积累'+this.projects.length+'条,建议导出备份','info');
