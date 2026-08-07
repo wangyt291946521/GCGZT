@@ -172,6 +172,12 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 .sp-dot.delayed-done{background:#ea580c}
 .sp-dot.parallel.delayed-done{background:#ea580c;border-color:#ea580c;border-style:solid}
 .sp-dot.my-dept{background:var(--warning);animation:blink 1.5s infinite}
+.sp-dot.skip{background:repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 3px,#f1f5f9 3px,#f1f5f9 6px);border:1px dashed #94a3b8}
+.sb-skip{background:#f1f5f9;color:#94a3b8}
+.stage-detail.skipped{background:#f8fafc;border-color:#e2e8f0;opacity:0.65}
+.rd-support-badge{display:inline-flex;align-items:center;gap:3px;background:#fff7ed;color:#ea580c;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;border:1px solid #fdba74;white-space:nowrap}
+.rd-support-section{background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px 12px;margin-top:6px}
+.rd-support-section h4{font-size:12px;color:#92400e;margin-bottom:4px}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
 
 /* Stage labels row */
@@ -535,22 +541,24 @@ function today(){return new Date().toISOString().split('T')[0]}
 function daysAgo(d){if(!d)return 0;return Math.floor((new Date()-new Date(d+'T00:00:00'))/86400000)}
 function isOverdue(st){return st&&st.s==='in-progress'&&st.de&&st.de<today()}
 function isStageDelayed(st){return st&&st.s==='done'&&st.delayed===true}
+function isSkipped(st){return st&&st.s==='skip'}
 function isParallelStage(key){return PARALLEL_KEYS.indexOf(key)>=0}
-// 找项目的「当前阶段」：跳过已完成的顺序阶段，并行组里任一个进行中都算当前
-// 如果并行组全部完成，才继续往下走到发货
+// 找项目的「当前阶段」：跳过已完成和已跳过的顺序阶段，并行组里任一个进行中都算当前
+// 如果并行组全部完成或跳过，才继续往下走到发货
 function findCurrentStageIdx(p){
-  var allParallelDone = PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&st.s==='done'});
-  // 如果并行组未全部完成，当前阶段在并行组内找第一个进行中的（或第一个待启动的）
+  // 并行组"完成"= done 或 skip 都算
+  var allParallelDone = PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&(st.s==='done'||st.s==='skip')});
+  // 如果并行组未全部完成，当前阶段在并行组内找第一个进行中的（或第一个待启动的，跳过skip）
   if(!allParallelDone){
     for(var i=0;i<STAGES.length;i++){
       if(isParallelStage(STAGES[i].key)){
         var st=p.stages[STAGES[i].key];
-        if(st&&(st.s==='in-progress'||st.s==='pending'))return i; // 第一个未完成的并行阶段
+        if(st&&(st.s==='in-progress'||st.s==='pending'))return i; // 第一个未完成且未跳过的并行阶段
       }
     }
     return 1; // 默认指向第一个并行阶段（采购）
   }
-  // 并行组全部完成，按顺序往下找
+  // 并行组全部完成/跳过，按顺序往下找（跳过skip）
   for(var i=0;i<STAGES.length;i++){
     var st=p.stages[STAGES[i].key];
     if(!isParallelStage(STAGES[i].key)){
@@ -570,9 +578,9 @@ var DEMO = [
   {id:'P2026-001',contractNo:'20260308001',name:'深圳南山图书馆智能借还系统',agent:'深圳智慧科技',items:'借还书机×8, RFID安全门×4',
     stages:{order:{s:'done',ds:'2026-03-01',de:'2026-03-10',h:'张经理',n:''},purchase:{s:'done',ds:'2026-03-15',de:'2026-03-25',h:'李采购',n:'全部到货'},dev:{s:'done',ds:'2026-03-26',de:'2026-04-15',h:'王工',n:'定制借还流程适配完成'},production:{s:'in-progress',ds:'2026-04-16',de:'2026-08-12',h:'赵生产',n:'设备组装中'},shipping:{s:'pending',ds:'',de:'',h:'',n:''},maintenance:{s:'pending',ds:'',de:'',h:'',n:''},payment:{s:'pending',ds:'',de:'',h:'',n:''}}},
   {id:'P2026-002',contractNo:'20260415002',name:'广州天河区图书馆门禁系统',agent:'广州博学科技',items:'RFID通道门×6, 检测仪×2',
-    stages:{order:{s:'done',ds:'2026-04-10',de:'2026-04-16',h:'刘经理',n:''},purchase:{s:'in-progress',ds:'2026-04-17',de:'2026-08-20',h:'李采购',n:'下单完成,等待到货'},dev:{s:'pending',ds:'',de:'',h:'',n:''},production:{s:'pending',ds:'',de:'',h:'',n:''},shipping:{s:'pending',ds:'',de:'',h:'',n:''},maintenance:{s:'pending',ds:'',de:'',h:'',n:''},payment:{s:'pending',ds:'',de:'',h:'',n:''}}},
+    stages:{order:{s:'done',ds:'2026-04-10',de:'2026-04-16',h:'刘经理',n:''},purchase:{s:'in-progress',ds:'2026-04-17',de:'2026-08-20',h:'李采购',n:'下单完成,等待到货'},dev:{s:'skip',ds:'',de:'',h:'',n:'标准品无需研发'},production:{s:'pending',ds:'',de:'',h:'',n:''},shipping:{s:'pending',ds:'',de:'',h:'',n:''},maintenance:{s:'pending',ds:'',de:'',h:'',n:''},payment:{s:'pending',ds:'',de:'',h:'',n:''}}},
   {id:'P2026-003',contractNo:'20260108003',name:'北京海淀区智慧图书馆整体方案',agent:'北京文轩信息',items:'借还机×12,盘点车×3,工作站×5,标签×5万',
-    stages:{order:{s:'done',ds:'2026-01-10',de:'2026-01-25',h:'陈总监',n:'合同金额¥280万'},purchase:{s:'done',ds:'2026-01-26',de:'2026-02-15',h:'李采购',n:'分批到货'},dev:{s:'done',ds:'2026-02-16',de:'2026-03-20',h:'王工',n:'接口开发完成'},production:{s:'done',ds:'2026-03-21',de:'2026-04-30',h:'赵生产',n:'安装调试完成'},shipping:{s:'done',ds:'2026-05-01',de:'2026-05-10',dr:'2026-05-13',delayed:true,h:'孙物流',n:'已发货'},maintenance:{s:'in-progress',ds:'2026-05-11',de:'2026-07-28',h:'周维护',n:'等待客户确认中'},payment:{s:'pending',ds:'',de:'',h:'',n:''}}},
+    stages:{order:{s:'done',ds:'2026-01-10',de:'2026-01-25',h:'陈总监',n:'合同金额¥280万'},purchase:{s:'done',ds:'2026-01-26',de:'2026-02-15',h:'李采购',n:'分批到货'},dev:{s:'done',ds:'2026-02-16',de:'2026-03-20',h:'王工',n:'接口开发完成'},production:{s:'done',ds:'2026-03-21',de:'2026-04-30',h:'赵生产',n:'安装调试完成'},shipping:{s:'done',ds:'2026-05-01',de:'2026-05-10',dr:'2026-05-13',delayed:true,h:'孙物流',n:'已发货'},maintenance:{s:'in-progress',ds:'2026-05-11',de:'2026-07-28',h:'周维护',n:'等待客户确认中',rdNeeded:true,rdHandler:'王工',rdDate:'2026-07-15',rdNote:'现场调试时发现RFID读取范围异常，需研发到场排查'},payment:{s:'pending',ds:'',de:'',h:'',n:''}}},
   {id:'P2026-004',contractNo:'20260501004',name:'成都锦江区24小时自助图书馆',agent:'成都数图科技',items:'自助借还柜×2,门禁×1',
     stages:{order:{s:'done',ds:'2026-05-05',de:'2026-05-10',h:'张经理',n:''},purchase:{s:'pending',ds:'',de:'',h:'',n:''},dev:{s:'pending',ds:'',de:'',h:'',n:''},production:{s:'pending',ds:'',de:'',h:'',n:''},shipping:{s:'pending',ds:'',de:'',h:'',n:''},maintenance:{s:'pending',ds:'',de:'',h:'',n:''},payment:{s:'pending',ds:'',de:'',h:'',n:''}}}
 ];
@@ -781,7 +789,7 @@ var APP = {
         }
       });
       var done=this.projects.filter(function(p){
-        return STAGES.every(function(s){var st=p.stages[s.key];return st&&st.s==='done'});
+        return STAGES.every(function(s){var st=p.stages[s.key];return st&&(st.s==='done'||st.s==='skip')});
       }).length;
       sec.innerHTML='<div class="section-title"><span class="dot" style="background:var(--info)"></span>全局概览</div>'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
@@ -863,7 +871,7 @@ var APP = {
       list=list.filter(function(p){return STAGES.some(function(s){return isOverdue(p.stages[s.key])})});
       titleEl.textContent='已超期的项目';
     }else if(this.filter==='done'){
-      list=list.filter(function(p){return STAGES.every(function(s){var st=p.stages[s.key];return st&&st.s==='done'})});
+      list=list.filter(function(p){return STAGES.every(function(s){var st=p.stages[s.key];return st&&(st.s==='done'||st.s==='skip')})});
       titleEl.textContent='已完成的项目';
     }else{
       titleEl.textContent='全部项目';
@@ -915,22 +923,29 @@ var APP = {
       }
     }
 
-    // allDone: are ALL stages complete?
-    var allDone=STAGES.every(function(s){var st=p.stages[s.key];return st&&st.s==='done'});
+    // allDone: are ALL stages complete (done or skip)?
+    var allDone=STAGES.every(function(s){var st=p.stages[s.key];return st&&(st.s==='done'||st.s==='skip')});
 
     // Count active parallel stages
-    var parallelActive=0,parallelDone=0;
+    var parallelActive=0,parallelDone=0,parallelSkip=0;
     if(curIdx>=1&&curIdx<=3){
       PARALLEL_KEYS.forEach(function(k){
         var st=p.stages[k];
         if(st&&st.s==='in-progress')parallelActive++;
         if(st&&st.s==='done')parallelDone++;
+        if(st&&st.s==='skip')parallelSkip++;
       });
     }
+
+    // Check if dev is skipped for badge
+    var devSkipped=p.stages.dev&&p.stages.dev.s==='skip';
+    // Check if maintenance needs R&D support
+    var rdNeeded=p.stages.maintenance&&p.stages.maintenance.rdNeeded;
 
     // Badge
     var badgeCls='sb-pending',badgeText='待启动';
     if(stageOverdue){badgeCls='sb-delayed';badgeText=STAGES[curIdx].name+' · 已超期'+daysAgo(curSt.de)+'天'}
+    else if(curStatus==='skip'){badgeCls='sb-skip';badgeText=STAGES[curIdx].name+' · 已跳过'}
     else if(curStatus==='in-progress'){
       badgeCls='sb-progress';
       badgeText=isInParallel&&parallelActive>1?
@@ -951,10 +966,11 @@ var APP = {
       if(st&&st.s==='done'){
         cls+=isStageDelayed(st)?' delayed-done':' done';
       }
+      else if(st&&st.s==='skip')cls+=' skip';
       else if(isOverdue(st))cls+=' delayed';
       else if(i===curIdx&&curStatus==='in-progress'&&!stageOverdue)cls+=' in-progress';
-      if(i===myIdx&&st&&st.s!=='done'&&st.s!=='in-progress')cls+=' my-dept';
-      dots+='<div class="'+cls+'" title="'+STAGES[i].name+(isParallelStage(STAGES[i].key)?' (并行)':'')+(isStageDelayed(st)?' (延期完成)':'')+'"></div>';
+      if(i===myIdx&&st&&st.s!=='done'&&st.s!=='in-progress'&&st.s!=='skip')cls+=' my-dept';
+      dots+='<div class="'+cls+'" title="'+STAGES[i].name+(isParallelStage(STAGES[i].key)?' (并行)':'')+(isStageDelayed(st)?' (延期完成)':'')+(isSkipped(st)?' (已跳过)':'')+'"></div>';
     }
 
     // Stage labels
@@ -963,11 +979,13 @@ var APP = {
       var st=p.stages[STAGES[i].key];
       var done=st&&st.s==='done';
       var delayedDone=isStageDelayed(st);
+      var skipped=isSkipped(st);
       var over=isOverdue(st);
       var cls=done?'done':'';
       var labelText=STAGES[i].name;
       var labelStyle='';
-      if(delayedDone){labelText='⚠ '+STAGES[i].name;labelStyle='color:#ea580c;font-weight:700'}
+      if(skipped){labelText='⊘ '+STAGES[i].name;labelStyle='color:#94a3b8;text-decoration:line-through'}
+      else if(delayedDone){labelText='⚠ '+STAGES[i].name;labelStyle='color:#ea580c;font-weight:700'}
       else if(done){labelText='✓ '+STAGES[i].name}
       else if(over){labelText='⚠ '+STAGES[i].name;labelStyle='color:var(--danger);font-weight:700';cls='active'}
       labels+='<span class="'+cls+'"'+(labelStyle?' style="'+labelStyle+'"':'')+'>'+labelText+'</span>';
@@ -990,9 +1008,14 @@ var APP = {
     // Need-me highlight
     var needsMe=(this.dept!=='all'&&myIdx>=0&&curIdx===myIdx)?' needs-me':'';
 
+    // Extra tags: skip tag + R&D support badge
+    var extraTags='';
+    if(devSkipped)extraTags+='<span class="rd-support-badge" style="background:#f1f5f9;color:#94a3b8;border-color:#cbd5e1">⊘ 无研发</span>';
+    if(rdNeeded)extraTags+='<span class="rd-support-badge">需研发支援</span>';
+
     return '<div class="project-card'+needsMe+'" onclick="APP.openDetail(\''+p.id+'\')">'+
       '<div class="project-header">'+
-        '<div><div class="project-title">'+p.name+'</div><div class="project-meta">合同号：'+p.contractNo+' · '+p.agent+'</div></div>'+
+        '<div><div class="project-title">'+p.name+'</div><div class="project-meta">合同号：'+p.contractNo+' · '+p.agent+'</div>'+(extraTags?'<div style="margin-top:4px">'+extraTags+'</div>':'')+'</div>'+
         '<span class="stage-badge '+badgeCls+'">'+badgeText+'</span>'+
       '</div>'+
       '<div class="stage-pipeline">'+dots+'</div>'+
@@ -1039,8 +1062,10 @@ var APP = {
 
       var over=isOverdue(st);
       var delayed=isStageDelayed(st);
+      var skipped=isSkipped(st);
       var label='待启动',color='#94a3b8',bg='#f1f5f9';
-      if(status==='done'){
+      if(status==='skip'){label='已跳过';color='#94a3b8';bg='#f1f5f9'}
+      else if(status==='done'){
         if(delayed){label='延期完成';color='#ea580c';bg='#fff7ed'}
         else{label='已完成';color='#059669';bg='#dcfce7'}
       }
@@ -1048,30 +1073,64 @@ var APP = {
       else if(status==='in-progress'){label='进行中';color='#4f46e5';bg='#dbeafe'}
 
       var isMine=(self.dept===s.dept&&self.dept!=='all');
+      var isAllView=(self.dept==='all');
       var actions='';
-      if(isMine){
-        if(status==='pending')actions='<button class="btn-sm btn-primary" onclick="APP.startStage(\''+pid+'\',\''+s.key+'\')">开始处理</button>';
-        if(status==='in-progress'||over)actions='<button class="btn-sm btn-success" onclick="APP.completeStage(\''+pid+'\',\''+s.key+'\')">标记完成</button>';
+      if(skipped){
+        // Allow anyone to restore a skipped stage
+        actions='<button class="btn-sm btn-gray" onclick="APP.unskipStage(\''+pid+'\',\''+s.key+'\')">恢复此阶段</button>';
+      }else if(isMine){
+        if(status==='pending'){
+          actions='<button class="btn-sm btn-primary" onclick="APP.startStage(\''+pid+'\',\''+s.key+'\')">开始处理</button>';
+          // Allow skipping for pending stages (especially dev)
+          actions+=' <button class="btn-sm btn-gray" onclick="APP.skipStage(\''+pid+'\',\''+s.key+'\')">跳过</button>';
+        }
+        if(status==='in-progress'||over){
+          actions='<button class="btn-sm btn-success" onclick="APP.completeStage(\''+pid+'\',\''+s.key+'\')">标记完成</button>';
+        }
         if(status!=='pending'){
           actions+=' <button class="btn-sm btn-gray" onclick="APP.toggleNoteEdit(\''+pid+'\',\''+s.key+'\')">编辑备注</button>';
+        }
+      }else if(isAllView&&status==='pending'){
+        // In "全部" view, allow skipping pending stages
+        actions='<button class="btn-sm btn-gray" onclick="APP.skipStage(\''+pid+'\',\''+s.key+'\')">跳过</button>';
+      }
+
+      // R&D support button for maintenance stage when in-progress
+      var rdSection='';
+      if(s.key==='maintenance'&&status==='in-progress'){
+        if(st&&st.rdNeeded){
+          rdSection='<div class="rd-support-section">'+
+            '<h4>研发支援</h4>'+
+            '<div>处理人：'+(st.rdHandler||'-')+'</div>'+
+            '<div>到场日期：'+(st.rdDate||'-')+'</div>'+
+            (st.rdNote?'<div>问题说明：'+st.rdNote+'</div>':'')+
+            '<button class="btn-sm btn-gray" style="margin-top:6px" onclick="APP._promptRDSupport(\''+pid+'\')">修改支援信息</button>'+
+          '</div>';
+        }else{
+          rdSection='<button class="btn-sm btn-outline" style="margin-top:6px;color:#ea580c;border-color:#fdba74" onclick="APP._promptRDSupport(\''+pid+'\')">召唤研发支援</button>';
         }
       }
 
       var dateRow='';
-      if(st&&st.ds)dateRow+='<div>开始：'+st.ds+'</div>';
-      if(status==='done'){
-        if(st&&st.de)dateRow+='<div>计划截止：'+st.de+'</div>';
-        if(st&&st.dr){
-          var delayDays=st.de?Math.floor((new Date(st.dr+'T00:00:00')-new Date(st.de+'T00:00:00'))/86400000):0;
-          dateRow+='<div>实际完成：'+st.dr+(delayed?' <span style="color:#ea580c;font-weight:700">（延期'+delayDays+'天）</span>':'')+'</div>';
-        }
+      if(skipped){
+        dateRow='<div style="color:var(--text3)">此阶段已跳过，无需处理</div>';
       }else{
-        if(st&&st.de)dateRow+='<div>截止：'+st.de+(over?' <span style="color:#dc2626;font-weight:700">（已超期'+daysAgo(st.de)+'天）</span>':'')+'</div>';
+        if(st&&st.ds)dateRow+='<div>开始：'+st.ds+'</div>';
+        if(status==='done'){
+          if(st&&st.de)dateRow+='<div>计划截止：'+st.de+'</div>';
+          if(st&&st.dr){
+            var delayDays=st.de?Math.floor((new Date(st.dr+'T00:00:00')-new Date(st.de+'T00:00:00'))/86400000):0;
+            dateRow+='<div>实际完成：'+st.dr+(delayed?' <span style="color:#ea580c;font-weight:700">（延期'+delayDays+'天）</span>':'')+'</div>';
+          }
+        }else{
+          if(st&&st.de)dateRow+='<div>截止：'+st.de+(over?' <span style="color:#dc2626;font-weight:700">（已超期'+daysAgo(st.de)+'天）</span>':'')+'</div>';
+        }
+        if(!dateRow&&status==='pending')dateRow='<div style="color:var(--text3)">等待 '+s.dept+' 处理</div>';
+        if(!dateRow)dateRow='<div style="color:var(--text3)">-</div>';
       }
-      if(!dateRow&&status==='pending')dateRow='<div style="color:var(--text3)">等待 '+s.dept+' 处理</div>';
-      if(!dateRow)dateRow='<div style="color:var(--text3)">-</div>';
 
       var detailCls='stage-detail';
+      if(skipped)detailCls+=' skipped';
       if(isMine)detailCls+=' current';
       if(status==='done')detailCls+=delayed?' delayed-done':' completed';
       var detailStyle=over?' style="border-color:#fecaca;background:#fff5f5"':'';
@@ -1084,6 +1143,7 @@ var APP = {
           (st&&st.h?'<div>处理人：'+st.h+'</div>':'')+
           (st&&st.n?'<div>备注：'+st.n+'</div>':'')+
         '</div>'+
+        rdSection+
         (actions?'<div class="sd-actions">'+actions+'</div>':'')+
       '</div>';
     }
@@ -1137,9 +1197,9 @@ var APP = {
     p.stages[sk].dr=actualDate;
     p.stages[sk].delayed=(deadline&&actualDate>deadline)?true:false;
     p.stages[sk].s='done';
-    // Parallel completion check
+    // Parallel completion check (skip also counts as done)
     if(isParallelStage(sk)){
-      var allDone=PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&st.s==='done'});
+      var allDone=PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&(st.s==='done'||st.s==='skip')});
       if(allDone&&p.stages.shipping&&p.stages.shipping.s==='pending'){
         p.stages.shipping.s='in-progress';
         p.stages.shipping.ds=today();
@@ -1161,9 +1221,9 @@ var APP = {
     p.stages[sk].dr=actualDate;
     p.stages[sk].delayed=(deadline&&actualDate>deadline)?true:false;
     p.stages[sk].s='done';
-    // If this is a parallel stage, check if all parallel stages done → auto-start shipping
+    // If this is a parallel stage, check if all parallel stages done/skip → auto-start shipping
     if(isParallelStage(sk)){
-      var allDone=PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&st.s==='done'});
+      var allDone=PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&(st.s==='done'||st.s==='skip')});
       if(allDone){
         // Auto-start shipping if pending, inherit dates from last completed parallel stage
         if(p.stages.shipping&&p.stages.shipping.s==='pending'){
@@ -1180,7 +1240,64 @@ var APP = {
     this.toast(p.stages[sk].delayed?'已标记完成（延期完成）':'已标记完成','success');
   },
 
-  // Prompt deadline before starting a stage
+  // Skip a stage (mark as not needed)
+  skipStage:function(pid,sk){
+    var p=this.findProject(pid);if(!p)return;
+    p.stages[sk].s='skip';
+    p.stages[sk].ds='';p.stages[sk].de='';p.stages[sk].h='';
+    // If this is a parallel stage, check if all parallel stages done/skip → auto-start shipping
+    if(isParallelStage(sk)){
+      var allDone=PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&(st.s==='done'||st.s==='skip')});
+      if(allDone&&p.stages.shipping&&p.stages.shipping.s==='pending'){
+        p.stages.shipping.s='in-progress';
+        p.stages.shipping.ds=today();
+        var lastDate='';
+        PARALLEL_KEYS.forEach(function(k){var st=p.stages[k];var d=st.dr||st.de;if(d&&d>lastDate)lastDate=d});
+        var defDe=new Date();defDe.setDate(defDe.getDate()+7);p.stages.shipping.de=lastDate||defDe.toISOString().split('T')[0];
+      }
+    }
+    this.saveData();this.renderAll();this.openDetail(pid);
+    this.toast('已跳过：'+STAGES.find(function(s){return s.key===sk}).name,'info');
+  },
+
+  // Restore a skipped stage back to pending
+  unskipStage:function(pid,sk){
+    var p=this.findProject(pid);if(!p)return;
+    p.stages[sk].s='pending';
+    this.saveData();this.renderAll();this.openDetail(pid);
+    this.toast('已恢复此阶段','info');
+  },
+
+  // R&D support for maintenance stage
+  _promptRDSupport:function(pid){
+    var p=this.findProject(pid);if(!p)return;
+    var st=p.stages.maintenance;
+    document.getElementById('formContent').innerHTML=
+      '<h2>召唤研发支援</h2>'+
+      '<p style="color:var(--text2);font-size:14px;margin-bottom:14px">项目：'+p.name+'</p>'+
+      '<div class="form-group"><label>研发处理人</label><input type="text" id="f_rdHandler" value="'+(st.rdHandler||'')+'" placeholder="研发人员姓名"></div>'+
+      '<div class="form-group"><label>问题描述</label><textarea id="f_rdNote" placeholder="现场遇到的技术问题" style="min-height:60px">'+(st.rdNote||'')+'</textarea></div>'+
+      '<div class="form-group"><label>到场日期</label><input type="date" id="f_rdDate" value="'+(st.rdDate||today())+'"></div>'+
+      '<div style="display:flex;gap:8px;margin-top:16px">'+
+        '<button class="btn-sm btn-gray" style="flex:1" onclick="APP.closeFormModal()">取消</button>'+
+        '<button class="btn-sm btn-primary" style="flex:1" onclick="APP._doRDSupport(\''+pid+'\')">确认</button>'+
+      '</div>';
+    document.getElementById('formModal').style.display='flex';
+  },
+
+  _doRDSupport:function(pid){
+    var p=this.findProject(pid);if(!p)return;
+    var handler=document.getElementById('f_rdHandler').value.trim();
+    var note=document.getElementById('f_rdNote').value.trim();
+    var date=document.getElementById('f_rdDate').value;
+    if(!handler){this.toast('请输入研发处理人','error');return}
+    p.stages.maintenance.rdNeeded=true;
+    p.stages.maintenance.rdHandler=handler;
+    p.stages.maintenance.rdNote=note;
+    p.stages.maintenance.rdDate=date;
+    this.saveData();this.renderAll();this.closeFormModal();this.openDetail(pid);
+    this.toast('已记录研发支援信息','success');
+  },
   _promptDeadline:function(pid,sk){
     var p=this.findProject(pid);if(!p)return;
     var sName='',sDept='';
@@ -1217,6 +1334,10 @@ var APP = {
       '<div class="form-group"><label>项目名称 *</label><input id="f_name" placeholder="必填"></div>'+
       '<div class="form-group"><label>代理商名称</label><input id="f_agent" placeholder="代理商全称"></div>'+
       '<div class="form-group"><label>项目清单</label><textarea id="f_items" placeholder="设备×数量，逗号分隔"></textarea></div>'+
+      '<div class="form-group" style="display:flex;align-items:center;gap:8px">'+
+        '<input type="checkbox" id="f_noDev" style="width:18px;height:18px">'+
+        '<label for="f_noDev" style="font-size:14px;cursor:pointer">本项目无需研发阶段</label>'+
+      '</div>'+
       '<div style="display:flex;gap:8px;margin-top:16px">'+
         '<button class="btn-sm btn-gray" style="flex:1" onclick="APP.closeFormModal()">取消</button>'+
         '<button class="btn-sm btn-primary" style="flex:1" onclick="APP.doAdd()">创建项目</button>'+
@@ -1243,6 +1364,9 @@ var APP = {
     // Auto-start first stage with today as start, 14-day default deadline
     var defDe=new Date();defDe.setDate(defDe.getDate()+14);
     stages.order.s='in-progress';stages.order.ds=today();stages.order.de=defDe.toISOString().split('T')[0];stages.order.h='项目部';
+    // Skip dev stage if checkbox is checked
+    var noDev=document.getElementById('f_noDev');
+    if(noDev&&noDev.checked){stages.dev.s='skip'}
 
     var newProject={id:id,contractNo:cn,name:name,agent:agent,items:items,stages:stages};
     this.projects.push(newProject);
@@ -1447,14 +1571,20 @@ var APP = {
     }
 
     // Stage bars
-    var statusColors={done:'#059669','in-progress':'#4f46e5',pending:'#cbd5e1'};
+    var statusColors={done:'#059669','in-progress':'#4f46e5',pending:'#cbd5e1',skip:'#e2e8f0'};
     projects.forEach(function(p,pi){
       var ry=HEADER_H+pi*ROW_H;
       STAGES.forEach(function(s){
         var st=p.stages[s.key];if(!st)return;
+        if(st.s==='skip')return; // skip stages: no bar
         var color=statusColors[st.s]||'#cbd5e1';
         if(st.s==='in-progress'&&isOverdue(st))color='#dc2626';
         if(st.s==='done'&&isStageDelayed(st))color='#ea580c';
+        // R&D support pattern for maintenance
+        var patternDef='';
+        if(s.key==='maintenance'&&st.rdNeeded){
+          color='#ea580c';
+        }
         var hasDates=st.ds&&st.de;
         if(hasDates){
           var barStart=Math.floor((new Date(st.ds+'T00:00:00')-new Date(minDate+'T00:00:00'))/86400000);
@@ -1472,6 +1602,10 @@ var APP = {
           if(st.s==='done'){
             svg+='<circle cx="'+(bx+bw-3)+'" cy="'+(by+bh/2)+'" r="5" fill="#fff" opacity="0.8"/>';
             svg+='<text x="'+(bx+bw-5)+'" y="'+(by+bh/2+3)+'" text-anchor="middle" font-size="7" fill="'+color+'">✓</text>';
+          }
+          // R&D support indicator on maintenance bar
+          if(s.key==='maintenance'&&st.rdNeeded){
+            svg+='<text x="'+(bx+4)+'" y="'+(by-2)+'" font-size="8" fill="#ea580c" font-weight="700">RD</text>';
           }
         }else if(st.s==='pending'){
           // Show a thin placeholder for pending stages (at expected position)
@@ -1504,7 +1638,9 @@ var APP = {
       '<div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#ea580c"></div>延期完成</div>'+
       '<div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#4f46e5"></div>进行中</div>'+
       '<div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#dc2626"></div>已超期</div>'+
-      '<div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#e2e8f0;border:1px dashed #94a3b8"></div>待启动</div>';
+      '<div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:#e2e8f0;border:1px dashed #94a3b8"></div>待启动</div>'+
+      '<div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 3px,#f1f5f9 3px,#f1f5f9 6px);border:1px dashed #94a3b8"></div>已跳过</div>'+
+      '<div class="gantt-legend-item"><span style="font-size:9px;font-weight:700;color:#ea580c;background:#fff7ed;border:1px solid #fdba74;padding:1px 4px;border-radius:3px">RD</span>需研发支援</div>';
 
     document.getElementById('ganttBody').innerHTML=
       '<div class="gantt-labels"><div style="height:'+HEADER_H+'px;padding:12px 10px;font-size:11px;color:var(--text2);font-weight:600;border-bottom:1px solid var(--border)">项目名称</div>'+labels+'</div>'+
@@ -1519,9 +1655,9 @@ var APP = {
     }
 
     // Compute stats
-    var inProg=0,delayed=0,completed=0,pending=0,delayedDone=0;
-    var stageStats={}; // {key: {inProg,delayed,done,pending,total,delayedDone}}
-    STAGES.forEach(function(s){stageStats[s.key]={inProg:0,delayed:0,done:0,pending:0,total:0,delayedDone:0}});
+    var inProg=0,delayed=0,completed=0,pending=0,delayedDone=0,skipped=0,rdSupport=0;
+    var stageStats={}; // {key: {inProg,delayed,done,pending,total,delayedDone,skip}}
+    STAGES.forEach(function(s){stageStats[s.key]={inProg:0,delayed:0,done:0,pending:0,total:0,delayedDone:0,skip:0}});
 
     this.projects.forEach(function(p){
       var allDone=true;
@@ -1533,10 +1669,13 @@ var APP = {
           ss.done++;
           if(isStageDelayed(st)){ss.delayedDone++;delayedDone++}
         }
+        else if(st&&st.s==='skip'){ss.skip++;skipped++}
         else if(isOverdue(st)){ss.delayed++;delayed++}
         else if(st&&st.s==='in-progress'){ss.inProg++;inProg++}
         else{ss.pending++;pending++}
-        if(!st||st.s!=='done')allDone=false;
+        if(!st||(st.s!=='done'&&st.s!=='skip'))allDone=false;
+        // Count R&D support
+        if(s.key==='maintenance'&&st&&st.rdNeeded)rdSupport++;
       });
       if(allDone)completed++;
     });
@@ -1548,6 +1687,10 @@ var APP = {
         this._statCard(inProg,'进行中','#2563eb',Math.round(inProg/total*100)+'%')+
         this._statCard(delayed,'已超期','#dc2626',Math.round(delayed/total*100)+'%'+(delayed>0?' ⚠':' ✓'))+
         this._statCard(completed,'已完成','#059669',delayedDone>0?delayedDone+'个延期':'100%完成')+
+      '</div>'+
+      '<div class="analytics-grid" style="margin-top:8px">'+
+        this._statCard(skipped,'已跳过阶段','#94a3b8',skipped>0?'省去非必要环节':'-')+
+        this._statCard(rdSupport,'需研发支援','#ea580c',rdSupport>0?'维护阶段召唤研发':'-')+
       '</div>';
 
     // Stage distribution bar chart — grouped bars with legend
@@ -1560,20 +1703,23 @@ var APP = {
       var ddPct=Math.round(ss.delayedDone/maxStageTotal*100);
       var iPct=Math.round(ss.inProg/maxStageTotal*100);
       var dePct=Math.round(ss.delayed/maxStageTotal*100);
+      var skPct=Math.round(ss.skip/maxStageTotal*100);
       html+='<div class="bar-row"><div class="bar-label">'+s.name+'</div><div class="bar-track">'+
         (onTime?'<div class="bar-fill" style="width:'+dPct+'%;background:#059669;border-radius:4px"><span>'+onTime+'</span></div>':'')+
         (ss.delayedDone?'<div class="bar-fill" style="width:'+ddPct+'%;background:#ea580c;border-radius:4px;margin-left:2px"><span>'+ss.delayedDone+'</span></div>':'')+
         (ss.inProg?'<div class="bar-fill" style="width:'+iPct+'%;background:#2563eb;border-radius:4px;margin-left:2px"><span>'+ss.inProg+'</span></div>':'')+
         (ss.delayed?'<div class="bar-fill" style="width:'+dePct+'%;background:#dc2626;border-radius:4px;margin-left:2px"><span>'+ss.delayed+'</span></div>':'')+
-        (!ss.done&&!ss.inProg&&!ss.delayed?'<div style="font-size:11px;color:#94a3b8;padding:2px 8px">'+ss.pending+' 待启动</div>':'')+
+        (ss.skip?'<div class="bar-fill" style="width:'+skPct+'%;background:#94a3b8;border-radius:4px;margin-left:2px"><span>'+ss.skip+'</span></div>':'')+
+        (!ss.done&&!ss.inProg&&!ss.delayed&&!ss.skip?'<div style="font-size:11px;color:#94a3b8;padding:2px 8px">'+ss.pending+' 待启动</div>':'')+
       '</div></div>';
     });
     // Legend
-    html+='<div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--text3)">'+
+    html+='<div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--text3);flex-wrap:wrap">'+
       '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#059669;margin-right:3px;vertical-align:middle"></span>已完成</span>'+
       '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#ea580c;margin-right:3px;vertical-align:middle"></span>延期完成</span>'+
       '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#2563eb;margin-right:3px;vertical-align:middle"></span>进行中</span>'+
       '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#dc2626;margin-right:3px;vertical-align:middle"></span>已超期</span>'+
+      '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#94a3b8;margin-right:3px;vertical-align:middle"></span>已跳过</span>'+
     '</div>';
     html+='</div></div>';
 
@@ -1592,14 +1738,15 @@ var APP = {
     });
     html+='</div></div>';
 
-    // Completion donut — count all done stages
-    var onTimeStages=0,delayedDoneStages=0,inProgStages=0,delayedStages=0,pendingStages=0;
+    // Completion donut — count all done/skip stages
+    var onTimeStages=0,delayedDoneStages=0,inProgStages=0,delayedStages=0,pendingStages=0,skipStages=0;
     this.projects.forEach(function(p){
       STAGES.forEach(function(s){
         var st=p.stages[s.key];
         if(st&&st.s==='done'){
           if(isStageDelayed(st))delayedDoneStages++;else onTimeStages++;
         }
+        else if(st&&st.s==='skip')skipStages++;
         else if(isOverdue(st))delayedStages++;
         else if(st&&st.s==='in-progress')inProgStages++;
         else pendingStages++;
@@ -1607,7 +1754,8 @@ var APP = {
     });
     var totalStages=total*7;
     var doneStages=onTimeStages+delayedDoneStages;
-    var donePct=Math.round(doneStages/totalStages*100);
+    var effectiveStages=totalStages-skipStages; // skip stages don't count toward completion
+    var donePct=effectiveStages>0?Math.round(doneStages/effectiveStages*100):0;
     var donutR=70,donutCx=90,donutCy=90,donutStroke=16;
     var circum=2*Math.PI*(donutR-donutStroke/2);
     var dashLen=circum*donePct/100;
@@ -1617,14 +1765,15 @@ var APP = {
         '<circle cx="'+donutCx+'" cy="'+donutCy+'" r="'+(donutR-donutStroke/2)+'" fill="none" stroke="#e2e8f0" stroke-width="'+donutStroke+'"/>'+
         '<circle cx="'+donutCx+'" cy="'+donutCy+'" r="'+(donutR-donutStroke/2)+'" fill="none" stroke="#059669" stroke-width="'+donutStroke+'" stroke-dasharray="'+dashLen+' '+circum+'" stroke-linecap="round" transform="rotate(-90 '+donutCx+' '+donutCy+')"/>'+
         '<text x="'+donutCx+'" y="'+donutCy+'" text-anchor="middle" font-size="32" font-weight="800" fill="#1a1a2e">'+donePct+'%</text>'+
-        '<text x="'+donutCx+'" y="'+(donutCy+20)+'" text-anchor="middle" font-size="11" fill="#64748b">'+doneStages+'/'+totalStages+' 阶段</text>'+
+        '<text x="'+donutCx+'" y="'+(donutCy+20)+'" text-anchor="middle" font-size="11" fill="#64748b">'+doneStages+'/'+effectiveStages+' 阶段'+(skipStages?' ('+skipStages+'跳过)':'')+'</text>'+
       '</svg>'+
       '<div class="legend">'+
         '<div class="legend-item"><div class="legend-dot" style="background:#059669"></div>按时完成 '+onTimeStages+'</div>'+
         '<div class="legend-item"><div class="legend-dot" style="background:#ea580c"></div>延期完成 '+delayedDoneStages+'</div>'+
         '<div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div>进行中 '+inProgStages+'</div>'+
         '<div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>已超期 '+delayedStages+'</div>'+
-        '<div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div>待启动 '+pendingStages+'</div>'+
+        '<div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div>已跳过 '+skipStages+'</div>'+
+        '<div class="legend-item"><div class="legend-dot" style="background:#e2e8f0"></div>待启动 '+pendingStages+'</div>'+
       '</div>'+
     '</div></div>';
 
@@ -1659,20 +1808,25 @@ var APP = {
       cols.push(s.name+'-实际完成');
       cols.push(s.name+'-处理人');
       cols.push(s.name+'-备注');
+      if(s.key==='maintenance'){
+        cols.push('维护-需研发支援');
+        cols.push('维护-研发处理人');
+        cols.push('维护-研发到场日期');
+        cols.push('维护-研发问题说明');
+      }
     });
     var csv=[cols.map(function(c){return '"'+c.replace(/"/g,'""')+'"'}).join(',')];
 
     // Data rows
     this.projects.forEach(function(p){
       // Find current stage
-      var curIdx=0,curStatus='待启动';
-      for(var i=0;i<STAGES.length;i++){
-        var st=p.stages[STAGES[i].key];
-        if(st&&st.s==='in-progress'){curIdx=i;curStatus='进行中';break}
-        if(st&&st.s==='done'){curIdx=i;curStatus='已完成'}
-        else if(curStatus==='已完成'&&st&&st.s==='pending'){curIdx=i;curStatus='待启动'}
-      }
+      var curIdx=findCurrentStageIdx(p),curStatus='待启动';
       var curSt=p.stages[STAGES[curIdx].key];
+      if(curSt){
+        if(curSt.s==='done')curStatus='已完成';
+        else if(curSt.s==='skip')curStatus='已跳过';
+        else if(curSt.s==='in-progress')curStatus=isOverdue(curSt)?'已超期':'进行中';
+      }
       if(isOverdue(curSt))curStatus='已超期';
 
       var row=[
@@ -1687,6 +1841,7 @@ var APP = {
         var st=p.stages[s.key];
         var stageStatus='待启动';
         if(st&&st.s==='done'){stageStatus=isStageDelayed(st)?'延期完成':'已完成'}
+        else if(st&&st.s==='skip'){stageStatus='已跳过'}
         else if(st&&st.s==='in-progress'){stageStatus=isOverdue(st)?'已超期':'进行中'}
         row.push(stageStatus);
         row.push(st&&st.ds?st.ds:'');
@@ -1694,6 +1849,12 @@ var APP = {
         row.push(st&&st.dr?st.dr:'');
         row.push(st&&st.h?st.h:'');
         row.push(st&&st.n?st.n:'');
+        if(s.key==='maintenance'){
+          row.push(st&&st.rdNeeded?'是':'');
+          row.push(st&&st.rdHandler?st.rdHandler:'');
+          row.push(st&&st.rdDate?st.rdDate:'');
+          row.push(st&&st.rdNote?st.rdNote:'');
+        }
       });
       csv.push(row.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(','));
     });
