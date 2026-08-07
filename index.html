@@ -623,41 +623,34 @@ var APP = {
   // ==== DATA ====
   loadData:function(){
     var self=this;
-    // 1. 始终先从 localStorage 加载（优先保障数据不丢）
-    var local=localStorage.getItem('wb_gc_projects_v2');
-    if(local){try{this.projects=JSON.parse(local)}catch(e){this.projects=[]}}
-    this._migrateStages();
-    // 2. 如果本地没有数据，直接用 DEMO
-    if(!this.projects.length){this.projects=JSON.parse(JSON.stringify(DEMO));this.saveData()}
-    // 3. API 模式下，尝试从服务器同步（服务端数据多/新则覆盖本地）
     if(API_BASE){
+      // 刷新时始终从服务器拉最新数据（覆盖本地缓存）
       fetch(API_BASE+'/projects')
         .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
         .then(function(data){
-          if(data.length>self.projects.length||(data.length===self.projects.length&&data.length>0&&!local)){
-            // 服务器数据更多，或本地没有数据 → 用服务器的
-            self.projects=data;
-            self._migrateStages();
-            localStorage.setItem('wb_gc_projects_v2',JSON.stringify(data));
-          }else if(!data.length&&self.projects.length){
-            // 服务器为空但本地有数据 → 把本地数据推上去
-            self._syncToServer();
-          }
+          self.projects=data;
+          self._migrateStages();
+          // 同步到本地缓存
+          localStorage.setItem('wb_gc_projects_v2',JSON.stringify(data));
+          if(!self.projects.length){self.projects=JSON.parse(JSON.stringify(DEMO));self.saveData()}
           self.renderAll();
         })
         .catch(function(e){
-          console.log('服务器同步跳过(使用本地数据):',e.message);
+          // 服务器不可用 → 降级使用 localStorage 缓存
+          console.log('服务器不可用，使用本地缓存:',e.message);
+          var local=localStorage.getItem('wb_gc_projects_v2');
+          if(local){try{self.projects=JSON.parse(local)}catch(e){self.projects=[]}}
+          self._migrateStages();
+          if(!self.projects.length){self.projects=JSON.parse(JSON.stringify(DEMO));self.saveData()}
           self.renderAll();
         });
     }else{
+      // 纯本地模式
+      var local=localStorage.getItem('wb_gc_projects_v2');
+      if(local){try{this.projects=JSON.parse(local)}catch(e){this.projects=[]}}
+      this._migrateStages();
+      if(!this.projects.length){this.projects=JSON.parse(JSON.stringify(DEMO));self.saveData()}
       this.renderAll();
-    }
-  },
-
-  _syncToServer:function(){
-    if(API_BASE){
-      fetch(API_BASE+'/projects',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.projects)})
-        .catch(function(){});
     }
   },
 
