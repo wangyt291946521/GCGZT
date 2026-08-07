@@ -512,7 +512,7 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 <script>
 // ===== 部署配置（部署到 Vercel 时填写 Railway 后端地址）=====
 // 例: var GC_API_BASE = 'https://gcgzt-production-xxxx.up.railway.app';
-var GC_API_BASE = '';
+var GC_API_BASE = 'https://gcgzt-production.up.railway.app';
 
 // ===== API MODE: auto-detect =====
 var API_BASE = (function(){
@@ -602,7 +602,7 @@ var APP = {
   updateModeBadge:function(){
     var badge=document.getElementById('modeBadge');
     if(GC_API_BASE){
-      badge.textContent='远程API';
+      badge.textContent='数据同步至Railway';
       badge.style.background='#dbeafe';badge.style.color='#2563eb';
     }else if(API_BASE){
       badge.textContent='在线(数据存本地)';
