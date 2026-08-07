@@ -510,17 +510,23 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 </div>
 
 <script>
-// ===== 部署配置（部署到 Vercel 时填写 Railway 后端地址）=====
-// 例: var GC_API_BASE = 'https://gcgzt-production-xxxx.up.railway.app';
-var GC_API_BASE = 'https://gcgzt-production.up.railway.app';
+// ===== 部署配置 =====
+// GC_API_BASE 留空即可自动检测；手动填写则强制使用指定地址
+var GC_API_BASE = '';
 
-// ===== API MODE: auto-detect =====
+// ===== API MODE: smart auto-detect =====
+// Railway 自身 → 同源 /api
+// CloudStudio/Vercel 等静态托管 → 自动指向 Railway
+// 本地文件 → localStorage only
 var API_BASE = (function(){
-  // 手动配置了远程 API 地址（Vercel 部署场景）
   if(GC_API_BASE) return GC_API_BASE.replace(/\/+$/,'')+'/api';
-  // 同源部署（Railway 一体部署场景）
-  if(window.location.protocol==='http:'||window.location.protocol==='https:') return '/api';
-  // 本地文件打开 — 使用 localStorage
+  // 部署在 Railway 自身 → 同源 API
+  if(window.location.hostname.includes('railway.app')) return '/api';
+  // 本地开发服务器（node server.js）
+  if(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1') return '/api';
+  // CloudStudio / Vercel 等纯静态托管 → 自动指向 Railway 后端
+  if(window.location.protocol==='https:'||window.location.protocol==='http:') return 'https://gcgzt-production.up.railway.app/api';
+  // 本地 HTML 文件 → 仅 localStorage
   return '';
 })();
 
@@ -601,12 +607,13 @@ var APP = {
 
   updateModeBadge:function(){
     var badge=document.getElementById('modeBadge');
-    if(GC_API_BASE){
-      badge.textContent='数据同步至Railway';
+    if(API_BASE){
+      if(API_BASE.indexOf('railway.app')>=0){
+        badge.textContent='数据同步至Railway';
+      }else{
+        badge.textContent='在线(数据存本地)';
+      }
       badge.style.background='#dbeafe';badge.style.color='#2563eb';
-    }else if(API_BASE){
-      badge.textContent='在线(数据存本地)';
-      badge.style.background='#dcfce7';badge.style.color='#059669';
     }else{
       badge.textContent='本地模式';
       badge.style.background='#fef3c7';badge.style.color='#d97706';
