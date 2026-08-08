@@ -549,6 +549,16 @@ function isOverdue(st){return st&&st.s==='in-progress'&&st.de&&st.de<today()}
 function isStageDelayed(st){return st&&st.s==='done'&&st.delayed===true}
 function isSkipped(st){return st&&st.s==='skip'}
 function isParallelStage(key){return PARALLEL_KEYS.indexOf(key)>=0}
+// 判断某阶段的前置阶段是否已完成（done 或 skip）
+// 依赖链：order → 并行组(purchase/dev/production) → shipping → maintenance → payment
+function _prevStageDone(p,sk){
+  if(sk==='order')return true;
+  if(isParallelStage(sk))return p.stages.order&&(p.stages.order.s==='done'||p.stages.order.s==='skip');
+  if(sk==='shipping')return PARALLEL_KEYS.every(function(k){var st=p.stages[k];return st&&(st.s==='done'||st.s==='skip')});
+  if(sk==='maintenance')return p.stages.shipping&&(p.stages.shipping.s==='done'||p.stages.shipping.s==='skip');
+  if(sk==='payment')return p.stages.maintenance&&(p.stages.maintenance.s==='done'||p.stages.maintenance.s==='skip');
+  return true;
+}
 // 找项目的「当前阶段」：跳过已完成和已跳过的顺序阶段，并行组里任一个进行中都算当前
 // 如果并行组全部完成或跳过，才继续往下走到发货
 function findCurrentStageIdx(p){
@@ -749,7 +759,8 @@ var APP = {
         var st=p.stages[s.key];
         if(st&&isOverdue(st))overdue++;
         else if(st&&st.s==='in-progress')inProg++;
-        if(!st||st.s==='pending')pending++;
+        // pending 只在前置阶段完成后才计入
+        if((!st||st.s==='pending')&&_prevStageDone(p,s.key))pending++;
       });
       var isActive=(self.dept==='all'||self.dept===s.dept);
       var ovTxt=overdue?' <span style="color:var(--danger);font-size:10px">('+overdue+'超期)</span>':'';
@@ -809,7 +820,7 @@ var APP = {
       var st=p.stages[sk];if(!st)return;
       if(isOverdue(st))overdue.push(p);
       else if(st.s==='in-progress')inProg.push(p);
-      else if(st.s==='pending')waiting.push(p);
+      else if(st.s==='pending'&&_prevStageDone(p,sk))waiting.push(p);
     });
 
     var html='';
@@ -862,7 +873,7 @@ var APP = {
     // Dept filter
     else if(this.filter==='my'&&this.dept!=='all'){
       var sk=this.stageKeyFor(this.dept);
-      list=list.filter(function(p){var st=p.stages[sk];return st&&(st.s==='in-progress'||st.s==='pending'||isOverdue(st))});
+      list=list.filter(function(p){var st=p.stages[sk];if(!st)return false;if(st.s==='in-progress'||isOverdue(st))return true;if(st.s==='pending')return _prevStageDone(p,sk);return false});
       titleEl.textContent='需要我处理';
     }else if(this.filter==='active'){
       list=list.filter(function(p){return STAGES.some(function(s){var st=p.stages[s.key];return st&&st.s==='in-progress'})});
@@ -998,7 +1009,7 @@ var APP = {
         actionBtn='<button class="btn-sm btn-warning" onclick="event.stopPropagation();APP.completeMyStage(\''+p.id+'\')">标记完成</button>';
       }else if(curStatus==='in-progress'){
         actionBtn='<button class="btn-sm btn-success" onclick="event.stopPropagation();APP.completeMyStage(\''+p.id+'\')">标记完成</button>';
-      }else if(curStatus==='pending'){
+      }else if(curStatus==='pending'&&_prevStageDone(p,STAGES[myIdx].key)){
         actionBtn='<button class="btn-sm btn-primary" onclick="event.stopPropagation();APP.startMyStage(\''+p.id+'\')">开始处理</button>';
       }
     }else if(this.dept==='all'){
@@ -1080,9 +1091,13 @@ var APP = {
         actions='<button class="btn-sm btn-gray" onclick="APP.unskipStage(\''+pid+'\',\''+s.key+'\')">恢复此阶段</button>';
       }else if(isMine){
         if(status==='pending'){
-          actions='<button class="btn-sm btn-primary" onclick="APP.startStage(\''+pid+'\',\''+s.key+'\')">开始处理</button>';
-          // Allow skipping for pending stages (especially dev)
-          actions+=' <button class="btn-sm btn-gray" onclick="APP.skipStage(\''+pid+'\',\''+s.key+'\')">跳过</button>';
+          if(_prevStageDone(p,s.key)){
+            actions='<button class="btn-sm btn-primary" onclick="APP.startStage(\''+pid+'\',\''+s.key+'\')">开始处理</button>';
+            // Allow skipping for pending stages (especially dev)
+            actions+=' <button class="btn-sm btn-gray" onclick="APP.skipStage(\''+pid+'\',\''+s.key+'\')">跳过</button>';
+          }else{
+            actions='<span style="color:var(--text2);font-size:12px">等待前置阶段完成</span>';
+          }
         }
         if(status==='in-progress'||over){
           actions='<button class="btn-sm btn-success" onclick="APP.completeStage(\''+pid+'\',\''+s.key+'\')">标记完成</button>';
@@ -1206,6 +1221,18 @@ var APP = {
         var defDe=new Date();defDe.setDate(defDe.getDate()+7);p.stages.shipping.de=defDe.toISOString().split('T')[0];
       }
     }
+    // shipping 完成 → 自动启动 maintenance
+    if(sk==='shipping'&&p.stages.maintenance&&p.stages.maintenance.s==='pending'){
+      p.stages.maintenance.s='in-progress';
+      p.stages.maintenance.ds=today();
+      var mDe3=new Date();mDe3.setDate(mDe3.getDate()+7);p.stages.maintenance.de=mDe3.toISOString().split('T')[0];
+    }
+    // maintenance 完成 → 自动启动 payment
+    if(sk==='maintenance'&&p.stages.payment&&p.stages.payment.s==='pending'){
+      p.stages.payment.s='in-progress';
+      p.stages.payment.ds=today();
+      var pDe3=new Date();pDe3.setDate(pDe3.getDate()+7);p.stages.payment.de=pDe3.toISOString().split('T')[0];
+    }
     this.saveData();this.renderAll();
     this.toast(p.stages[sk].delayed?'已标记完成（延期完成）':'已标记完成','success');
   },
@@ -1236,6 +1263,18 @@ var APP = {
         }
       }
     }
+    // shipping 完成 → 自动启动 maintenance
+    if(sk==='shipping'&&p.stages.maintenance&&p.stages.maintenance.s==='pending'){
+      p.stages.maintenance.s='in-progress';
+      p.stages.maintenance.ds=today();
+      var mDe=new Date();mDe.setDate(mDe.getDate()+7);p.stages.maintenance.de=mDe.toISOString().split('T')[0];
+    }
+    // maintenance 完成 → 自动启动 payment
+    if(sk==='maintenance'&&p.stages.payment&&p.stages.payment.s==='pending'){
+      p.stages.payment.s='in-progress';
+      p.stages.payment.ds=today();
+      var pDe=new Date();pDe.setDate(pDe.getDate()+7);p.stages.payment.de=pDe.toISOString().split('T')[0];
+    }
     this.saveData();this.renderAll();this.openDetail(pid);
     this.toast(p.stages[sk].delayed?'已标记完成（延期完成）':'已标记完成','success');
   },
@@ -1255,6 +1294,18 @@ var APP = {
         PARALLEL_KEYS.forEach(function(k){var st=p.stages[k];var d=st.dr||st.de;if(d&&d>lastDate)lastDate=d});
         var defDe=new Date();defDe.setDate(defDe.getDate()+7);p.stages.shipping.de=lastDate||defDe.toISOString().split('T')[0];
       }
+    }
+    // shipping 跳过 → 自动启动 maintenance
+    if(sk==='shipping'&&p.stages.maintenance&&p.stages.maintenance.s==='pending'){
+      p.stages.maintenance.s='in-progress';
+      p.stages.maintenance.ds=today();
+      var mDe2=new Date();mDe2.setDate(mDe2.getDate()+7);p.stages.maintenance.de=mDe2.toISOString().split('T')[0];
+    }
+    // maintenance 跳过 → 自动启动 payment
+    if(sk==='maintenance'&&p.stages.payment&&p.stages.payment.s==='pending'){
+      p.stages.payment.s='in-progress';
+      p.stages.payment.ds=today();
+      var pDe2=new Date();pDe2.setDate(pDe2.getDate()+7);p.stages.payment.de=pDe2.toISOString().split('T')[0];
     }
     this.saveData();this.renderAll();this.openDetail(pid);
     this.toast('已跳过：'+STAGES.find(function(s){return s.key===sk}).name,'info');
