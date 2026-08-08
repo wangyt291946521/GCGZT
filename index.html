@@ -486,10 +486,6 @@ button{cursor:pointer;border:none;background:none;color:inherit}
     <option value="财务部">财务部</option>
   </select>
   <span id="modeBadge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap"></span>
-  <div class="user-area" id="userArea">
-    <span class="user-badge" id="userBadge"></span>
-    <button class="btn-logout" onclick="APP.doLogout()">退出</button>
-  </div>
   <button class="btn-icon" onclick="APP.openAnalytics()" title="数据分析" style="font-size:13px;font-weight:600;color:var(--primary);background:var(--primary-light);border-radius:16px;padding:5px 12px;width:auto;gap:3px">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
     分析
@@ -498,6 +494,10 @@ button{cursor:pointer;border:none;background:none;color:inherit}
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="4" rx="1" fill="#059669"/><rect x="5" y="11" width="14" height="4" rx="1" fill="#059669"/><rect x="3" y="18" width="18" height="4" rx="1" fill="#059669"/></svg>
     甘特图
   </button>
+  <div class="user-area" id="userArea">
+    <span class="user-badge" id="userBadge"></span>
+    <button class="btn-logout" onclick="APP.doLogout()">退出</button>
+  </div>  </button>
   <button class="btn-icon" onclick="APP.openBackup()" title="数据管理">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
   </button>
@@ -809,7 +809,19 @@ var APP = {
   },
 
   _myStageKeys:function(){
-    if(!this.user||this._isAdmin())return [];
+    if(!this.user)return [];
+    if(this._isAdmin()){
+      // Admin: if viewing a specific department, return its stage keys
+      if(this.dept&&this.dept!=='all'){
+        var adminKeys=[];
+        for(var ai=0;ai<STAGES.length;ai++){
+          if(STAGES[ai].dept===this.dept)adminKeys.push(STAGES[ai].key);
+        }
+        // Also include extra stages that might belong to this dept's view
+        return adminKeys;
+      }
+      return []; // all-view: admin uses overview cards, no specific stage keys
+    }
     var keys=[];
     for(var i=0;i<STAGES.length;i++){
       if(STAGES[i].dept===this.user.dept)keys.push(STAGES[i].key);
@@ -1018,86 +1030,13 @@ var APP = {
       var done=this.projects.filter(function(p){
         return STAGES.every(function(s){var st=p.stages[s.key];return st&&(st.s==='done'||st.s==='skip')});
       }).length;
-      var head='<div class="section-title"><span class="dot" style="background:var(--info)"></span>全局概览</div>'+
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">'+
+      sec.innerHTML='<div class="section-title"><span class="dot" style="background:var(--info)"></span>全局概览</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
         '<div style="flex:1;min-width:70px;background:var(--surface);border-radius:8px;padding:10px 8px;text-align:center;border:1px solid var(--border)"><div style="font-size:22px;font-weight:700;color:var(--primary)">'+inP+'</div><div style="font-size:11px;color:var(--text2)">进行中</div></div>'+
         '<div style="flex:1;min-width:70px;background:var(--surface);border-radius:8px;padding:10px 8px;text-align:center;border:1px solid var(--border)"><div style="font-size:22px;font-weight:700;color:var(--danger)">'+delayed+'</div><div style="font-size:11px;color:var(--text2)">已延期</div></div>'+
         '<div style="flex:1;min-width:70px;background:var(--surface);border-radius:8px;padding:10px 8px;text-align:center;border:1px solid var(--border)"><div style="font-size:22px;font-weight:700;color:var(--warning)">'+pending+'</div><div style="font-size:11px;color:var(--text2)">待启动</div></div>'+
         '<div style="flex:1;min-width:70px;background:var(--surface);border-radius:8px;padding:10px 8px;text-align:center;border:1px solid var(--border)"><div style="font-size:22px;font-weight:700;color:var(--success)">'+done+'</div><div style="font-size:11px;color:var(--text2)">已完成</div></div>'+
         '</div>';
-
-      // 按部门分组显示待处理任务
-      var DEPTS=[
-        {dept:'项目部',keys:['order']},
-        {dept:'采购部',keys:['purchase']},
-        {dept:'研发部',keys:['dev']},
-        {dept:'生产部',keys:['production','shipping']},
-        {dept:'维护部',keys:['maintenance']},
-        {dept:'财务部',keys:['payment']}
-      ];
-      var self=this;
-      var hasContent=false;
-      DEPTS.forEach(function(d){
-        var ov=[],ip=[],wt=[],rd=[];
-        self.projects.forEach(function(p){
-          for(var ki=0;ki<d.keys.length;ki++){
-            var st=p.stages[d.keys[ki]];if(!st)continue;
-            if(isOverdue(st)){ov.push(p);break}
-            else if(st.s==='in-progress'){ip.push(p);break}
-            else if(st.s==='pending'&&_prevStageDone(p,d.keys[ki])){wt.push(p);break}
-          }
-        });
-        // 研发部额外检查维护支援
-        if(d.dept==='研发部'){
-          self.projects.forEach(function(p){
-            var m=p.stages.maintenance;
-            if(m&&m.rdNeeded&&!m.rdCompleted)rd.push(p);
-          });
-        }
-        var total=ov.length+ip.length+wt.length+rd.length;
-        if(!total)return;
-        hasContent=true;
-        head+='<div style="font-weight:600;font-size:14px;color:var(--text1);margin:12px 0 6px;padding:4px 10px;background:var(--primary-light);border-radius:6px;cursor:pointer" onclick="APP.switchDept(\''+d.dept+'\')">📋 '+d.dept+' · '+total+'项 <span style="font-size:11px;float:right;color:var(--primary);margin-top:2px">查看全部 →</span></div>';
-        // 逾期
-        for(var i=0;i<Math.min(ov.length,3);i++){
-          var p=ov[i];
-          head+='<div class="my-task-item" style="background:#fef2f2;border-color:#fecaca">'+
-            '<span class="task-tag" style="background:#dc2626;color:#fff">逾期</span>'+
-            '<span class="task-name">'+p.name+'</span>'+
-            '<button class="btn-sm btn-danger" onclick="event.stopPropagation();APP.openDetail(\''+p.id+'\')">处理</button></div>';
-        }
-        // 进行中
-        for(var i=0;i<Math.min(ip.length,3);i++){
-          var p=ip[i];
-          head+='<div class="my-task-item" style="background:#dbeafe;border-color:#bfdbfe">'+
-            '<span class="task-tag" style="background:#2563eb;color:#fff">进行中</span>'+
-            '<span class="task-name">'+p.name+'</span>'+
-            '<button class="btn-sm btn-primary" onclick="event.stopPropagation();APP.openDetail(\''+p.id+'\')">处理</button></div>';
-        }
-        // 研发支援
-        for(var i=0;i<Math.min(rd.length,3);i++){
-          var p=rd[i];
-          head+='<div class="my-task-item" style="background:#fff7ed;border-color:#fdba74">'+
-            '<span class="task-tag" style="background:#ea580c;color:#fff">维护支援</span>'+
-            '<span class="task-name">'+p.name+'</span>'+
-            '<button class="btn-sm btn-success" onclick="event.stopPropagation();APP._doRDComplete(\''+p.id+'\')">完成支援</button></div>';
-        }
-        // 待启动
-        for(var i=0;i<Math.min(wt.length,3);i++){
-          var p=wt[i];
-          head+='<div class="my-task-item" style="background:var(--bg);border-color:var(--border)">'+
-            '<span class="task-tag" style="background:#e2e8f0;color:#64748b">待启动</span>'+
-            '<span class="task-name">'+p.name+'</span>'+
-            '<button class="btn-sm btn-outline" onclick="event.stopPropagation();APP.openDetail(\''+p.id+'\')">查看</button></div>';
-        }
-        if(ov.length>3||ip.length>3||wt.length>3){
-          head+='<div style="font-size:11px;color:var(--text3);text-align:center;padding:2px">... 还有更多任务，点击「查看全部」切换部门</div>';
-        }
-      });
-      if(!hasContent){
-        head+='<div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;background:var(--surface);border-radius:8px;border:1px solid var(--border);margin-top:4px">所有部门当前没有待处理的任务 ✓</div>';
-      }
-      sec.innerHTML=head;
       return;
     }
 
