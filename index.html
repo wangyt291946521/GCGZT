@@ -815,12 +815,18 @@ var APP = {
     var sk=this.stageKeyFor(this.dept);
     var stageName='';for(var i=0;i<STAGES.length;i++){if(STAGES[i].key===sk){stageName=STAGES[i].name;break}}
     var overdue=[],inProg=[],waiting=[];
+    var rdSupport=[]; // 研发部：维护支援任务
     var self=this;
     this.projects.forEach(function(p){
       var st=p.stages[sk];if(!st)return;
       if(isOverdue(st))overdue.push(p);
       else if(st.s==='in-progress')inProg.push(p);
       else if(st.s==='pending'&&_prevStageDone(p,sk))waiting.push(p);
+      // 研发部额外检查维护支援
+      if(self.dept==='研发部'){
+        var m=p.stages.maintenance;
+        if(m&&m.rdNeeded&&!m.rdCompleted)rdSupport.push(p);
+      }
     });
 
     var html='';
@@ -842,6 +848,15 @@ var APP = {
           '<button class="btn-sm btn-primary" onclick="event.stopPropagation();APP.openDetail(\''+p.id+'\')">处理</button></div>';
       }
     }
+    if(rdSupport.length){
+      for(var i=0;i<rdSupport.length;i++){
+        var p=rdSupport[i];
+        html+='<div class="my-task-item" style="background:#fff7ed;border-color:#fdba74">'+
+          '<span class="task-tag" style="background:#ea580c;color:#fff">维护支援</span>'+
+          '<span class="task-name">'+p.name+'</span>'+
+          '<button class="btn-sm btn-success" onclick="event.stopPropagation();APP._doRDComplete(\''+p.id+'\')">完成支援</button></div>';
+      }
+    }
     if(waiting.length&&waiting.length<=6){
       for(var i=0;i<Math.min(waiting.length,6);i++){
         var p=waiting[i];
@@ -853,7 +868,7 @@ var APP = {
     }
     if(!html)html='<div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;background:var(--surface);border-radius:8px;border:1px solid var(--border)">当前没有待处理的任务</div>';
 
-    sec.innerHTML='<div class="section-title"><span class="dot" style="background:var(--warning)"></span>'+this.dept+' · '+stageName+'任务 ('+(overdue.length+inProg.length+waiting.length)+'项)</div>'+html;
+    sec.innerHTML='<div class="section-title"><span class="dot" style="background:var(--warning)"></span>'+this.dept+' · '+stageName+'任务 ('+(overdue.length+inProg.length+waiting.length+rdSupport.length)+'项)</div>'+html;
   },
 
   // ---- Project List ----
@@ -873,7 +888,14 @@ var APP = {
     // Dept filter
     else if(this.filter==='my'&&this.dept!=='all'){
       var sk=this.stageKeyFor(this.dept);
-      list=list.filter(function(p){var st=p.stages[sk];if(!st)return false;if(st.s==='in-progress'||isOverdue(st))return true;if(st.s==='pending')return _prevStageDone(p,sk);return false});
+      list=list.filter(function(p){
+        var st=p.stages[sk];if(!st)return false;
+        if(st.s==='in-progress'||isOverdue(st))return true;
+        if(st.s==='pending')return _prevStageDone(p,sk);
+        // 研发部额外检查维护支援
+        if(APP.dept==='研发部'){var m=p.stages.maintenance;return m&&m.rdNeeded&&!m.rdCompleted}
+        return false;
+      });
       titleEl.textContent='需要我处理';
     }else if(this.filter==='active'){
       list=list.filter(function(p){return STAGES.some(function(s){var st=p.stages[s.key];return st&&st.s==='in-progress'})});
@@ -1012,17 +1034,27 @@ var APP = {
       }else if(curStatus==='pending'&&_prevStageDone(p,STAGES[myIdx].key)){
         actionBtn='<button class="btn-sm btn-primary" onclick="event.stopPropagation();APP.startMyStage(\''+p.id+'\')">开始处理</button>';
       }
+    }else if(this.dept==='研发部'&&rdNeeded&&!p.stages.maintenance.rdCompleted){
+      // 研发部：维护支援任务，显示完成支援按钮
+      actionBtn='<button class="btn-sm btn-success" onclick="event.stopPropagation();APP._doRDComplete(\''+p.id+'\')">完成支援</button>';
     }else if(this.dept==='all'){
       actionBtn='<button class="btn-sm btn-outline" onclick="event.stopPropagation();APP.openDetail(\''+p.id+'\')">查看</button>';
     }
 
-    // Need-me highlight
+    // Need-me highlight — also highlight R&D support tasks
     var needsMe=(this.dept!=='all'&&myIdx>=0&&curIdx===myIdx)?' needs-me':'';
+    if(this.dept==='研发部'&&rdNeeded&&!p.stages.maintenance.rdCompleted)needsMe=' needs-me';
 
     // Extra tags: skip tag + R&D support badge
     var extraTags='';
     if(devSkipped)extraTags+='<span class="rd-support-badge" style="background:#f1f5f9;color:#94a3b8;border-color:#cbd5e1">⊘ 无研发</span>';
-    if(rdNeeded)extraTags+='<span class="rd-support-badge">需研发支援</span>';
+    if(rdNeeded){
+      if(p.stages.maintenance.rdCompleted){
+        extraTags+='<span class="rd-support-badge" style="background:#dcfce7;color:#059669;border-color:#86efac">✓ 研发支援已完成</span>';
+      }else{
+        extraTags+='<span class="rd-support-badge">需研发支援</span>';
+      }
+    }
 
     return '<div class="project-card'+needsMe+'" onclick="APP.openDetail(\''+p.id+'\')">'+
       '<div class="project-header">'+
@@ -1110,18 +1142,39 @@ var APP = {
         actions='<button class="btn-sm btn-gray" onclick="APP.skipStage(\''+pid+'\',\''+s.key+'\')">跳过</button>';
       }
 
-      // R&D support button for maintenance stage when in-progress
+      // R&D support button for maintenance stage
       var rdSection='';
-      if(s.key==='maintenance'&&status==='in-progress'){
+      if(s.key==='maintenance'){
         if(st&&st.rdNeeded){
-          rdSection='<div class="rd-support-section">'+
-            '<h4>研发支援</h4>'+
-            '<div>处理人：'+(st.rdHandler||'-')+'</div>'+
-            '<div>到场日期：'+(st.rdDate||'-')+'</div>'+
-            (st.rdNote?'<div>问题说明：'+st.rdNote+'</div>':'')+
-            '<button class="btn-sm btn-gray" style="margin-top:6px" onclick="APP._promptRDSupport(\''+pid+'\')">修改支援信息</button>'+
-          '</div>';
-        }else{
+          if(st.rdCompleted){
+            // 已完成的研发支援记录
+            rdSection='<div class="rd-support-section" style="background:#f0fdf4;border-color:#86efac">'+
+              '<h4 style="color:#059669">✓ 研发支援记录</h4>'+
+              '<div>研发处理人：'+(st.rdHandler||'-')+'</div>'+
+              '<div>到场日期：'+(st.rdDate||'-')+'</div>'+
+              '<div>完成日期：'+(st.rdCompletedDate||'-')+'</div>'+
+              (st.rdNote?'<div>问题说明：'+st.rdNote+'</div>':'')+
+              (st.rdResult?'<div>处理结果：'+st.rdResult+'</div>':'')+
+              (self.dept==='维护部'||self.dept==='all'?'<button class="btn-sm btn-gray" style="margin-top:6px" onclick="APP._promptRDSupport(\''+pid+'\')">重新发起支援</button>':'')+
+            '</div>';
+          }else{
+            // 待处理的研发支援
+            var completeBtn='';
+            if(self.dept==='研发部'){
+              completeBtn='<button class="btn-sm btn-success" style="margin-top:6px" onclick="APP._promptRDComplete(\''+pid+'\')">完成研发支援</button> ';
+            }
+            rdSection='<div class="rd-support-section" style="background:#fff7ed;border-color:#fdba74">'+
+              '<h4 style="color:#ea580c">研发支援 · '+(self.dept==='研发部'?'待处理':'已发起')+'</h4>'+
+              '<div>研发处理人：'+(st.rdHandler||'-')+'</div>'+
+              '<div>到场日期：'+(st.rdDate||'-')+'</div>'+
+              (st.rdNote?'<div>问题说明：'+st.rdNote+'</div>':'')+
+              '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">'+
+                completeBtn+
+                (self.dept==='维护部'||self.dept==='all'?'<button class="btn-sm btn-gray" onclick="APP._promptRDSupport(\''+pid+'\')">修改支援信息</button>':'')+
+              '</div>'+
+            '</div>';
+          }
+        }else if(status==='in-progress'){
           rdSection='<button class="btn-sm btn-outline" style="margin-top:6px;color:#ea580c;border-color:#fdba74" onclick="APP._promptRDSupport(\''+pid+'\')">召唤研发支援</button>';
         }
       }
@@ -1343,11 +1396,44 @@ var APP = {
     var date=document.getElementById('f_rdDate').value;
     if(!handler){this.toast('请输入研发处理人','error');return}
     p.stages.maintenance.rdNeeded=true;
+    p.stages.maintenance.rdCompleted=false; // 重置完成状态（重新发起支援时）
     p.stages.maintenance.rdHandler=handler;
     p.stages.maintenance.rdNote=note;
     p.stages.maintenance.rdDate=date;
+    p.stages.maintenance.rdCompletedDate='';
+    p.stages.maintenance.rdResult='';
     this.saveData();this.renderAll();this.closeFormModal();this.openDetail(pid);
-    this.toast('已记录研发支援信息','success');
+    this.toast('已记录研发支援信息，研发部将收到任务提醒','success');
+  },
+
+  // 研发部完成维护支援
+  _promptRDComplete:function(pid){
+    var p=this.findProject(pid);if(!p)return;
+    var st=p.stages.maintenance;
+    document.getElementById('formContent').innerHTML=
+      '<h2>完成研发支援</h2>'+
+      '<p style="color:var(--text2);font-size:14px;margin-bottom:14px">项目：'+p.name+'</p>'+
+      '<div class="form-group"><label>研发处理人</label><input type="text" id="f_rdHandler2" value="'+(st.rdHandler||'')+'" placeholder="研发人员姓名"></div>'+
+      '<div class="form-group"><label>处理结果</label><textarea id="f_rdResult" placeholder="支援处理结果说明" style="min-height:60px">'+(st.rdResult||'')+'</textarea></div>'+
+      '<div style="display:flex;gap:8px;margin-top:16px">'+
+        '<button class="btn-sm btn-gray" style="flex:1" onclick="APP.closeFormModal()">取消</button>'+
+        '<button class="btn-sm btn-success" style="flex:1" onclick="APP._doRDComplete(\''+pid+'\')">确认完成</button>'+
+      '</div>';
+    document.getElementById('formModal').style.display='flex';
+  },
+
+  _doRDComplete:function(pid){
+    var p=this.findProject(pid);if(!p)return;
+    var handlerEl=document.getElementById('f_rdHandler2');
+    var handler=handlerEl?handlerEl.value.trim():(p.stages.maintenance.rdHandler||'');
+    var resultEl=document.getElementById('f_rdResult');
+    var result=resultEl?resultEl.value.trim():'';
+    p.stages.maintenance.rdHandler=handler;
+    p.stages.maintenance.rdResult=result;
+    p.stages.maintenance.rdCompleted=true;
+    p.stages.maintenance.rdCompletedDate=today();
+    this.saveData();this.renderAll();this.closeFormModal();this.openDetail(pid);
+    this.toast('研发支援已完成，已记录支援信息','success');
   },
   _promptDeadline:function(pid,sk){
     var p=this.findProject(pid);if(!p)return;
@@ -1864,6 +1950,9 @@ var APP = {
         cols.push('维护-研发处理人');
         cols.push('维护-研发到场日期');
         cols.push('维护-研发问题说明');
+        cols.push('维护-研发支援已完成');
+        cols.push('维护-研发完成日期');
+        cols.push('维护-研发处理结果');
       }
     });
     var csv=[cols.map(function(c){return '"'+c.replace(/"/g,'""')+'"'}).join(',')];
@@ -1905,6 +1994,9 @@ var APP = {
           row.push(st&&st.rdHandler?st.rdHandler:'');
           row.push(st&&st.rdDate?st.rdDate:'');
           row.push(st&&st.rdNote?st.rdNote:'');
+          row.push(st&&st.rdCompleted?'是':'');
+          row.push(st&&st.rdCompletedDate?st.rdCompletedDate:'');
+          row.push(st&&st.rdResult?st.rdResult:'');
         }
       });
       csv.push(row.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(','));
