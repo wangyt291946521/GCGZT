@@ -378,26 +378,118 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 .legend{display:flex;flex-direction:column;gap:4px}
 .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
 .legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+/* === Login === */
+.login-overlay{
+  position:fixed;inset:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+  z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.login-card{
+  background:#fff;border-radius:20px;padding:36px 28px;width:100%;max-width:380px;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+.login-card .login-logo{
+  text-align:center;margin-bottom:24px;
+}
+.login-card .login-logo h1{
+  font-size:24px;font-weight:800;color:var(--primary);margin-bottom:4px;
+}
+.login-card .login-logo p{
+  font-size:13px;color:var(--text2);
+}
+.login-card .login-form .form-group{margin-bottom:14px}
+.login-card .login-btn{
+  width:100%;padding:12px;border-radius:24px;font-size:16px;font-weight:700;
+  background:var(--primary);color:#fff;transition:opacity .2s;margin-top:6px;
+}
+.login-card .login-btn:hover{opacity:.9}
+.login-card .login-btn:active{transform:scale(.98)}
+.login-card .login-error{
+  background:#fef2f2;color:#dc2626;border-radius:8px;padding:8px 12px;font-size:13px;
+  margin-bottom:10px;display:none;
+}
+.login-card .login-hint{
+  margin-top:16px;padding:10px 12px;background:var(--bg);border-radius:8px;
+  font-size:11px;color:var(--text3);line-height:1.6;
+}
+.login-card .login-hint b{color:var(--text2)}
+
+/* User badge in topbar */
+.topbar .user-area{
+  display:flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.topbar .user-badge{
+  display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;
+  background:var(--bg);padding:5px 10px;border-radius:16px;
+}
+.topbar .user-badge .role-tag{
+  font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;
+  background:var(--primary);color:#fff;
+}
+.topbar .btn-logout{
+  font-size:12px;font-weight:600;color:var(--danger);padding:5px 10px;
+  border-radius:16px;border:1.5px solid var(--danger);background:var(--surface);
+  transition:all .2s;
+}
+.topbar .btn-logout:hover{background:#fef2f2}
 </style>
 </head>
 <body>
+
+<!-- ===== Login Overlay ===== -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>感创 · 项目流转平台</h1>
+      <p>请登录以进入工作台</p>
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-form">
+      <div class="form-group">
+        <label>账号</label>
+        <input type="text" id="loginUser" placeholder="输入账号" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="loginPass" placeholder="输入密码" autocomplete="current-password" onkeydown="if(event.key==='Enter')APP.doLogin()">
+      </div>
+      <button class="login-btn" onclick="APP.doLogin()">登 录</button>
+    </div>
+    <div class="login-hint">
+      <b>测试账号：</b><br>
+      admin / 123456 — 管理员（全部权限）<br>
+      xiangmubu / 123456 — 项目部<br>
+      caigoubu / 123456 — 采购部<br>
+      yanfabu / 123456 — 研发部<br>
+      shengchanbu / 123456 — 生产部（含发货）<br>
+      weihubu / 123456 — 维护部<br>
+      caiwubu / 123456 — 财务部
+    </div>
+  </div>
+</div>
+
+<!-- ===== Main App (hidden until login) ===== -->
+<div id="mainApp" style="display:none">
 
 <!-- ===== Top Bar ===== -->
 <div class="topbar">
   <div class="logo">感创<span>| 项目流转</span></div>
   <div class="spacer"></div>
   <span class="stat-badge">共 <b id="totalProjects">0</b> 个项目</span>
-  <select class="dept-select" id="deptSelect" onchange="APP.switchDept(this.value)">
+  <select class="dept-select" id="deptSelect" onchange="APP.switchDept(this.value)" style="display:none">
     <option value="all">全部视角</option>
     <option value="项目部">项目部</option>
     <option value="采购部">采购部</option>
     <option value="研发部">研发部</option>
     <option value="生产部">生产部</option>
-    <option value="发货">发货</option>
     <option value="维护部">维护部</option>
     <option value="财务部">财务部</option>
   </select>
   <span id="modeBadge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap"></span>
+  <div class="user-area" id="userArea">
+    <span class="user-badge" id="userBadge"></span>
+    <button class="btn-logout" onclick="APP.doLogout()">退出</button>
+  </div>
   <button class="btn-icon" onclick="APP.openAnalytics()" title="数据分析" style="font-size:13px;font-weight:600;color:var(--primary);background:var(--primary-light);border-radius:16px;padding:5px 12px;width:auto;gap:3px">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
     分析
@@ -450,12 +542,12 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 
 <!-- ===== Bottom Bar ===== -->
 <div class="action-bar">
-  <button class="btn-primary" onclick="APP.openAddModal()">+ 新建项目</button>
+  <button class="btn-primary" id="btnAdd" onclick="APP.openAddModal()">+ 新建项目</button>
   <button class="btn-outline" onclick="APP.exportData()">导出备份</button>
   <button class="btn-outline" style="color:var(--success)" onclick="APP.exportExcel()">导出Excel</button>
-  <button class="btn-outline" onclick="APP.openImport()">导入恢复</button>
+  <button class="btn-outline" id="btnImport" onclick="APP.openImport()">导入恢复</button>
   <button class="btn-gray" onclick="APP.openAnalytics()">数据分析</button>
-  <button class="btn-gray" onclick="APP.confirmClear()" style="color:var(--danger)">清空数据</button>
+  <button class="btn-gray" id="btnClear" onclick="APP.confirmClear()" style="color:var(--danger)">清空数据</button>
 </div>
 
 <!-- ===== Detail Modal ===== -->
@@ -509,6 +601,7 @@ button{cursor:pointer;border:none;background:none;color:inherit}
   </div>
 </div>
 
+</div><!-- /mainApp -->
 <script>
 // ===== 部署配置 =====
 // GC_API_BASE 留空即可自动检测；手动填写则强制使用指定地址
@@ -536,11 +629,22 @@ var STAGES = [
   {key:'purchase', name:'采购',     dept:'采购部', desc:'采购时间、到货情况',           parallel:true},
   {key:'dev',      name:'研发',     dept:'研发部', desc:'定制开发内容与进度',           parallel:true},
   {key:'production',name:'生产',    dept:'生产部', desc:'设备生产与安装情况',           parallel:true},
-  {key:'shipping', name:'发货',     dept:'发货',   desc:'发货日期与物流信息'},
+  {key:'shipping', name:'发货',     dept:'生产部', desc:'发货日期与物流信息'},
   {key:'maintenance',name:'维护开通',dept:'维护部', desc:'开通日期与备注'},
   {key:'payment',  name:'回款',     dept:'财务部', desc:'回款日期、金额、状态'}
 ];
 var PARALLEL_KEYS = ['purchase','dev','production']; // 并行阶段组
+
+// ===== USERS =====
+var USERS = [
+  {username:'admin',      password:'123456', role:'admin', name:'管理员', dept:''},
+  {username:'xiangmubu',   password:'123456', role:'user',  name:'项目部', dept:'项目部'},
+  {username:'caigoubu',   password:'123456', role:'user',  name:'采购部', dept:'采购部'},
+  {username:'yanfabu',    password:'123456', role:'user',  name:'研发部', dept:'研发部'},
+  {username:'shengchanbu',password:'123456', role:'user',  name:'生产部', dept:'生产部', extraStages:['shipping']},
+  {username:'weihubu',    password:'123456', role:'user',  name:'维护部', dept:'维护部'},
+  {username:'caiwubu',    password:'123456', role:'user',  name:'财务部', dept:'财务部'}
+];
 
 // ===== HELPERS =====
 function today(){return new Date().toISOString().split('T')[0]}
@@ -603,6 +707,7 @@ var DEMO = [
 
 // ===== APP =====
 var APP = {
+  user:null,
   dept:'all',
   filter:'all',
   projects:[],
@@ -611,8 +716,116 @@ var APP = {
 
   init:function(){
     this.updateModeBadge();
+    // Check session
+    var saved=localStorage.getItem('wb_gc_user');
+    if(saved){
+      try{
+        var u=JSON.parse(saved);
+        // Validate against USERS list
+        for(var i=0;i<USERS.length;i++){
+          if(USERS[i].username===u.username&&USERS[i].password===u.password){
+            this.user=USERS[i];
+            break;
+          }
+        }
+      }catch(e){}
+    }
+    if(this.user){
+      this._enterApp();
+    }else{
+      // Show login
+      document.getElementById('loginOverlay').style.display='flex';
+    }
+  },
+
+  // ==== AUTH ====
+  doLogin:function(){
+    var u=document.getElementById('loginUser').value.trim();
+    var p=document.getElementById('loginPass').value.trim();
+    var err=document.getElementById('loginError');
+    if(!u||!p){err.textContent='请输入账号和密码';err.style.display='block';return}
+    for(var i=0;i<USERS.length;i++){
+      if(USERS[i].username===u&&USERS[i].password===p){
+        this.user=USERS[i];
+        localStorage.setItem('wb_gc_user',JSON.stringify({username:u,password:p}));
+        err.style.display='none';
+        this._enterApp();
+        return;
+      }
+    }
+    err.textContent='账号或密码错误';
+    err.style.display='block';
+  },
+
+  doLogout:function(){
+    this.user=null;
+    localStorage.removeItem('wb_gc_user');
+    document.getElementById('mainApp').style.display='none';
+    document.getElementById('loginOverlay').style.display='flex';
+    document.getElementById('loginUser').value='';
+    document.getElementById('loginPass').value='';
+  },
+
+  _enterApp:function(){
+    document.getElementById('loginOverlay').style.display='none';
+    document.getElementById('mainApp').style.display='';
+    // Set dept and filter based on role
+    if(this.user.role==='admin'){
+      this.dept='all';
+      this.filter='all';
+      document.getElementById('deptSelect').style.display='';
+    }else{
+      this.dept=this.user.dept;
+      this.filter='my';
+      document.getElementById('deptSelect').style.display='none';
+    }
+    // Update user badge
+    var badge=document.getElementById('userBadge');
+    if(this.user.role==='admin'){
+      badge.innerHTML='<span class="role-tag">ADMIN</span>'+this.user.name;
+    }else{
+      badge.innerHTML='<span class="role-tag" style="background:var(--success)">'+this.user.dept+'</span>'+this.user.name;
+    }
+    // Show/hide admin-only buttons
+    var isAdmin=this._isAdmin();
+    document.getElementById('btnAdd').style.display=isAdmin?'':'none';
+    document.getElementById('btnImport').style.display=isAdmin?'':'none';
+    document.getElementById('btnClear').style.display=isAdmin?'':'none';
     this.loadData();
-    document.addEventListener('keydown',function(e){if(e.key==='Escape'){APP.closeDetailModal();APP.closeFormModal();}});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'){APP.closeDetailModal();APP.closeFormModal()}});
+  },
+
+  // ==== PERMISSION HELPERS ====
+  _isAdmin:function(){return this.user&&this.user.role==='admin'},
+
+  _isMyStage:function(sk){
+    if(this._isAdmin())return true;
+    if(!this.user)return false;
+    for(var i=0;i<STAGES.length;i++){
+      if(STAGES[i].key===sk&&STAGES[i].dept===this.user.dept)return true;
+    }
+    if(this.user.extraStages&&this.user.extraStages.indexOf(sk)>=0)return true;
+    return false;
+  },
+
+  _myStageKeys:function(){
+    if(!this.user||this._isAdmin())return [];
+    var keys=[];
+    for(var i=0;i<STAGES.length;i++){
+      if(STAGES[i].dept===this.user.dept)keys.push(STAGES[i].key);
+    }
+    if(this.user.extraStages)keys=keys.concat(this.user.extraStages);
+    return keys;
+  },
+
+  _canViewProject:function(p){
+    if(this._isAdmin())return true;
+    var keys=this._myStageKeys();
+    for(var i=0;i<keys.length;i++){
+      var st=p.stages[keys[i]];
+      if(st)return true;
+    }
+    return false;
   },
 
   updateModeBadge:function(){
@@ -717,8 +930,10 @@ var APP = {
 
   // ==== DEPT ====
   switchDept:function(d){
+    if(!this._isAdmin())return;
     this.dept=d;
     if(d==='all'&&this.filter==='my')this.filter='all';
+    document.getElementById('deptSelect').value=d;
     this.renderAll();
   },
   setFilter:function(f){
@@ -765,7 +980,8 @@ var APP = {
       var isActive=(self.dept==='all'||self.dept===s.dept);
       var ovTxt=overdue?' <span style="color:var(--danger);font-size:10px">('+overdue+'超期)</span>':'';
       var parallelMark=s.parallel?'<div style="font-size:9px;color:var(--primary);margin-top:2px">∥ 并行</div>':'';
-      html+='<div class="pipeline-step'+(isActive?' active':'')+(s.parallel?' parallel':'')+'" onclick="APP.switchDept(\''+s.dept+'\')">'+
+      var clickAttr=self._isAdmin()?' onclick="APP.switchDept(\''+s.dept+'\')"':'';
+      html+='<div class="pipeline-step'+(isActive?' active':'')+(s.parallel?' parallel':'')+'"'+clickAttr+'>'+
         '<div class="step-num">'+(i+1)+'</div>'+
         '<div class="step-name">'+s.name+'</div>'+
         '<div class="step-count">'+(inProg+overdue)+'</div>'+
@@ -812,16 +1028,21 @@ var APP = {
       return;
     }
 
-    var sk=this.stageKeyFor(this.dept);
-    var stageName='';for(var i=0;i<STAGES.length;i++){if(STAGES[i].key===sk){stageName=STAGES[i].name;break}}
+    var keys=this._myStageKeys();
+    var stageNames=[];
+    for(var ki=0;ki<keys.length;ki++){for(var i=0;i<STAGES.length;i++){if(STAGES[i].key===keys[ki]){stageNames.push(STAGES[i].name);break}}}
+    var stageName=stageNames.join('/');
     var overdue=[],inProg=[],waiting=[];
     var rdSupport=[]; // 研发部：维护支援任务
     var self=this;
     this.projects.forEach(function(p){
-      var st=p.stages[sk];if(!st)return;
-      if(isOverdue(st))overdue.push(p);
-      else if(st.s==='in-progress')inProg.push(p);
-      else if(st.s==='pending'&&_prevStageDone(p,sk))waiting.push(p);
+      var added=false;
+      for(var ki=0;ki<keys.length;ki++){
+        var st=p.stages[keys[ki]];if(!st)continue;
+        if(isOverdue(st)){overdue.push(p);added=true;break}
+        else if(st.s==='in-progress'){inProg.push(p);added=true;break}
+        else if(st.s==='pending'&&_prevStageDone(p,keys[ki])){waiting.push(p);added=true;break}
+      }
       // 研发部额外检查维护支援
       if(self.dept==='研发部'){
         var m=p.stages.maintenance;
@@ -874,8 +1095,14 @@ var APP = {
   // ---- Project List ----
   renderProjectList:function(){
     var list=this.projects.slice();
+    var self=this;
     var titleEl=document.getElementById('listTitle');
     var countEl=document.getElementById('listCount');
+
+    // Non-admin: always filter to own department's projects
+    if(!this._isAdmin()){
+      list=list.filter(function(p){return self._canViewProject(p)});
+    }
 
     // Search filter
     if(this.searchText){
@@ -887,11 +1114,13 @@ var APP = {
     }
     // Dept filter
     else if(this.filter==='my'&&this.dept!=='all'){
-      var sk=this.stageKeyFor(this.dept);
+      var keys=this._myStageKeys();
       list=list.filter(function(p){
-        var st=p.stages[sk];if(!st)return false;
-        if(st.s==='in-progress'||isOverdue(st))return true;
-        if(st.s==='pending')return _prevStageDone(p,sk);
+        for(var ki=0;ki<keys.length;ki++){
+          var st=p.stages[keys[ki]];if(!st)continue;
+          if(st.s==='in-progress'||isOverdue(st))return true;
+          if(st.s==='pending'&&_prevStageDone(p,keys[ki]))return true;
+        }
         // 研发部额外检查维护支援
         if(APP.dept==='研发部'){var m=p.stages.maintenance;return m&&m.rdNeeded&&!m.rdCompleted}
         return false;
@@ -948,13 +1177,17 @@ var APP = {
     var stageOverdue=isOverdue(curSt);
     var isInParallel=isParallelStage(STAGES[curIdx].key);
 
-    // myIdx: index of the stage belonging to the current department
+    // myKeys: stage keys belonging to current user's department
+    var myKeys=this._myStageKeys();
     var myIdx=-1;
     if(this.dept!=='all'){
+      // Find the stage index that matches current stage for my-dept highlight
       for(var mi=0;mi<STAGES.length;mi++){
-        if(STAGES[mi].dept===this.dept){myIdx=mi;break}
+        if(myKeys.indexOf(STAGES[mi].key)>=0){myIdx=mi;break}
       }
     }
+    // Check if current stage belongs to my department
+    var isMyCurStage=(this.dept!=='all')&&myKeys.indexOf(STAGES[curIdx].key)>=0;
 
     // allDone: are ALL stages complete (done or skip)?
     var allDone=STAGES.every(function(s){var st=p.stages[s.key];return st&&(st.s==='done'||st.s==='skip')});
@@ -1002,7 +1235,7 @@ var APP = {
       else if(st&&st.s==='skip')cls+=' skip';
       else if(isOverdue(st))cls+=' delayed';
       else if(i===curIdx&&curStatus==='in-progress'&&!stageOverdue)cls+=' in-progress';
-      if(i===myIdx&&st&&st.s!=='done'&&st.s!=='in-progress'&&st.s!=='skip')cls+=' my-dept';
+      if(myKeys.indexOf(STAGES[i].key)>=0&&st&&st.s!=='done'&&st.s!=='in-progress'&&st.s!=='skip')cls+=' my-dept';
       dots+='<div class="'+cls+'" title="'+STAGES[i].name+(isParallelStage(STAGES[i].key)?' (并行)':'')+(isStageDelayed(st)?' (延期完成)':'')+(isSkipped(st)?' (已跳过)':'')+'"></div>';
     }
 
@@ -1026,12 +1259,12 @@ var APP = {
 
     // Action button
     var actionBtn='';
-    if(this.dept!=='all'&&myIdx>=0&&curIdx===myIdx){
+    if(this.dept!=='all'&&isMyCurStage){
       if(stageOverdue){
         actionBtn='<button class="btn-sm btn-warning" onclick="event.stopPropagation();APP.completeMyStage(\''+p.id+'\')">标记完成</button>';
       }else if(curStatus==='in-progress'){
         actionBtn='<button class="btn-sm btn-success" onclick="event.stopPropagation();APP.completeMyStage(\''+p.id+'\')">标记完成</button>';
-      }else if(curStatus==='pending'&&_prevStageDone(p,STAGES[myIdx].key)){
+      }else if(curStatus==='pending'&&_prevStageDone(p,STAGES[curIdx].key)){
         actionBtn='<button class="btn-sm btn-primary" onclick="event.stopPropagation();APP.startMyStage(\''+p.id+'\')">开始处理</button>';
       }
     }else if(this.dept==='研发部'&&rdNeeded&&!p.stages.maintenance.rdCompleted){
@@ -1042,7 +1275,7 @@ var APP = {
     }
 
     // Need-me highlight — also highlight R&D support tasks
-    var needsMe=(this.dept!=='all'&&myIdx>=0&&curIdx===myIdx)?' needs-me':'';
+    var needsMe=isMyCurStage?' needs-me':'';
     if(this.dept==='研发部'&&rdNeeded&&!p.stages.maintenance.rdCompleted)needsMe=' needs-me';
 
     // Extra tags: skip tag + R&D support badge
@@ -1216,10 +1449,12 @@ var APP = {
       '</div>';
     }
 
-    html+='<div style="display:flex;gap:8px;margin-top:16px">'+
-      '<button class="btn-sm btn-primary" style="flex:1" onclick="APP.openEditModal(\''+pid+'\')">编辑基本信息</button>'+
-      '<button class="btn-sm btn-danger" style="flex:1" onclick="APP.deleteProject(\''+pid+'\')">删除项目</button>'+
-    '</div>';
+    if(self._isAdmin()){
+      html+='<div style="display:flex;gap:8px;margin-top:16px">'+
+        '<button class="btn-sm btn-primary" style="flex:1" onclick="APP.openEditModal(\''+pid+'\')">编辑基本信息</button>'+
+        '<button class="btn-sm btn-danger" style="flex:1" onclick="APP.deleteProject(\''+pid+'\')">删除项目</button>'+
+      '</div>';
+    }
 
     document.getElementById('detailContent').innerHTML=html;
     document.getElementById('detailModal').style.display='flex';
@@ -1253,13 +1488,25 @@ var APP = {
   // ==== STAGE ACTIONS ====
   startMyStage:function(pid){
     var p=this.findProject(pid);if(!p)return;
-    var sk=this.stageKeyFor(this.dept);
+    var keys=this._myStageKeys();
+    var sk=null;
+    for(var i=0;i<keys.length;i++){
+      var st=p.stages[keys[i]];
+      if(st&&st.s==='pending'&&_prevStageDone(p,keys[i])){sk=keys[i];break}
+    }
+    if(!sk){this.toast('没有可启动的阶段','info');return}
     this._promptDeadline(pid,sk);
   },
 
   completeMyStage:function(pid){
     var p=this.findProject(pid);if(!p)return;
-    var sk=this.stageKeyFor(this.dept);
+    var keys=this._myStageKeys();
+    var sk=null;
+    for(var i=0;i<keys.length;i++){
+      var st=p.stages[keys[i]];
+      if(st&&(st.s==='in-progress'||isOverdue(st))){sk=keys[i];break}
+    }
+    if(!sk){this.toast('没有可完成的阶段','info');return}
     var deadline=p.stages[sk].de||'';
     var actualDate=today();
     p.stages[sk].dr=actualDate;
